@@ -1,0 +1,12 @@
+{application, enenra, [
+    {description, "An OTP library for Google Cloud Storage."},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        hackney
+    ]},
+    {env, []},
+    {mod, {enenra_app, []}}
+]}.
