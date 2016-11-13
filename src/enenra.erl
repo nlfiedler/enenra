@@ -27,18 +27,8 @@
 -include("enenra.hrl").
 
 -export([load_credentials/1]).
--export([list_buckets/1]).
+-export([list_buckets/1, get_bucket/2, insert_bucket/2, delete_bucket/2]).
 
-%
-% Notes
-%
-% - Initially need basic operations for buckets and objects
-%   - create_bucket
-%   - list_buckets
-%   - upload_object
-%   - list_objects
-%   - fetch_object
-%   - delete_bucket
 %
 % TODO: URI encode the object names
 % TODO: ensure bucket names meet requirements
@@ -74,3 +64,47 @@ load_credentials(Filepath) ->
     Reason :: term().
 list_buckets(#credentials{}=Credentials) ->
     gen_server:call(enenra_server, {list_buckets, Credentials}).
+
+% @doc
+%
+% Retrieve the named bucket, returning {ok, Bucket} upon success.
+%
+-spec get_bucket(Name, Credentials) -> {ok, Bucket} | {error, Reason} when
+    Credentials :: credentials(),
+    Name :: binary() | string(),
+    Bucket :: bucket(),
+    Reason :: term().
+get_bucket(Name, #credentials{}=Credentials) ->
+    gen_server:call(enenra_server, {get_bucket, Name, Credentials}).
+
+% @doc
+%
+% Create a bucket with the given properties.
+%
+-spec insert_bucket(Bucket, Credentials) -> {ok, Bucket} | {error, Reason} when
+    Credentials :: credentials(),
+    Bucket :: bucket(),
+    Reason :: term().
+insert_bucket(Bucket, #credentials{}=Credentials) ->
+    gen_server:call(enenra_server, {insert_bucket, Bucket, Credentials}).
+
+% @doc
+%
+% Delete the named bucket, return {ok, Name} upon success.
+%
+-spec delete_bucket(Name, Credentials) -> {ok, Name} | {error, Reason} when
+    Credentials :: credentials(),
+    Name :: binary() | string(),
+    Reason :: term().
+delete_bucket(Name, #credentials{}=Credentials) ->
+    gen_server:call(enenra_server, {delete_bucket, Name, Credentials}).
+
+% TODO: update a bucket
+
+% TODO: upload object
+
+% TODO: list objects
+
+% TODO: fetch object
+
+% TODO: delete object

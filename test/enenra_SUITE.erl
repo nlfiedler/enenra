@@ -24,14 +24,49 @@ end_per_suite(_Config) ->
 
 all() ->
     [
-        list_buckets_test
+        bucket_lifecycle_test
     ].
 
-list_buckets_test(_Config) ->
+bucket_lifecycle_test(_Config) ->
     Credentials = get_env("GOOGLE_APPLICATION_CREDENTIALS"),
     {ok, Creds} = enenra:load_credentials(Credentials),
+
+    %
+    % create a new, uniquely named bucket
+    %
+    Suffix = integer_to_binary(crypto:rand_uniform(1, 9999)),
+    Name = <<"0136d00f-a942-11e6-8f9a-3c07547e18a6-enenra-", Suffix/binary>>,
+    Region = <<"US">>,
+    StorageClass = <<"NEARLINE">>,
+    InBucket = #bucket{
+        name=Name,
+        location=Region,
+        class= StorageClass
+    },
+    {ok, OutBucket} = enenra:insert_bucket(InBucket, Creds),
+    ?assertEqual(OutBucket#bucket.name, Name),
+    ?assertEqual(OutBucket#bucket.location, Region),
+    ?assertEqual(OutBucket#bucket.class, StorageClass),
+
+    %
+    % retrieve the bucket we just created
+    %
+    {ok, GetBucket} = enenra:get_bucket(Name, Creds),
+    ?assertEqual(GetBucket#bucket.name, Name),
+    ?assertEqual(GetBucket#bucket.location, Region),
+    ?assertEqual(GetBucket#bucket.class, StorageClass),
+
+    %
+    % ensure there is at least one bucket
+    %
     {ok, Buckets} = enenra:list_buckets(Creds),
     ?assert(is_list(Buckets)),
+    ?assert(length(Buckets) > 1),
+
+    %
+    % remove the bucket (note, this typically incurs an additional cost)
+    %
+    ok = enenra:delete_bucket(Name, Creds),
     ok.
 
 % Retrieve an environment variable, ensuring it is defined.
