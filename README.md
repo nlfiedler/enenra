@@ -16,7 +16,6 @@ $ rebar3 ct
 
 ## TODO
 
-1. Handle access token expiration by reacquiring authorization.
 1. Implement remaining CRUD operations for buckets and objects.
 1. Support other forms of authorization.
 
