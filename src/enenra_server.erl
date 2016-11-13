@@ -36,15 +36,15 @@ init([]) ->
     {ok, #state{}}.
 
 handle_call({list_buckets, Credentials}, _From, State) ->
-    NewState = ensure_connection(Credentials, State),
-    {ok, Buckets} = list_buckets(Credentials, NewState#state.token),
-    {reply, Buckets, NewState}.
+    ListBuckets = fun(Token) ->
+        list_buckets(Credentials, Token)
+    end,
+    request_with_retry(ListBuckets, Credentials, State).
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(Msg, State) ->
-    lager:notice("unexpected message: ~w", [Msg]),
+handle_info(_Msg, State) ->
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -59,40 +59,20 @@ code_change(_OldVsn, State, _Extra) ->
 
 % @doc
 %
-% Ensure a connection is available for sending requests, creating a new one
-% using the given credentials, if necessary.
-%
-ensure_connection(Credentials, #state{}=State) ->
-    case State#state.token of
-        undefined ->
-            {ok, Token} = get_auth_token(Credentials),
-            % {ok, Connection} = create_connection(Credentials),
-            State#state{token=Token};
-        _ -> State
-    end.
-
-% @doc
-%
 % Retrieve a list of the available buckets.
 %
+-spec list_buckets(credentials(), access_token()) -> {ok, [bucket()]}.
 list_buckets(Credentials, Token) ->
     Project = Credentials#credentials.project_id,
-    AccessToken = Token#access_token.access_token,
-    TokenType = Token#access_token.token_type,
-    Authorization = binary_to_list(TokenType) ++ " " ++ binary_to_list(AccessToken),
-    ReqHeaders = [
-        {"Authorization", Authorization}
-    ],
-    Parameters = [
-        {"project", Project}
-    ],
-    Url = hackney_url:make_url(?BASE_URL, "", Parameters),
-    {ok, _Status, _Headers, Client} = hackney:request(get, Url, ReqHeaders),
-    {ok, Body} = hackney:body(Client),
-    {Results} = jiffy:decode(Body),
-    % TODO: handle token expiration by creating new connection
-    Items = proplists:get_value(<<"items">>, Results),
-    {ok, [make_bucket(Item) || {Item} <- Items]}.
+    Url = hackney_url:make_url(?BASE_URL, "", [{"project", Project}]),
+    ReqHeaders = add_auth_header(Token, []),
+    {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
+    case decode_response(Status, Headers, Client) of
+        {ok, Body} ->
+            Items = proplists:get_value(<<"items">>, Body),
+            {ok, [make_bucket(Item) || {Item} <- Items]};
+        R -> R
+    end.
 
 % @doc
 %
@@ -112,6 +92,53 @@ make_bucket(PropList) ->
 
 % @doc
 %
+% Add the "Authorization" header to those given and return the new list.
+%
+-spec add_auth_header(access_token(), list()) -> list().
+add_auth_header(Token, Headers) ->
+    AccessToken = Token#access_token.access_token,
+    TokenType = Token#access_token.token_type,
+    Authorization = binary_to_list(TokenType) ++ " " ++ binary_to_list(AccessToken),
+    Headers ++ [
+        {"Authorization", Authorization}
+    ].
+
+% @doc
+%
+% Based on the response, return {ok, Body} or {error, Reason}. The body is
+% the decoded JSON response from the server. The error 'auth_required'
+% indicates a new authorization token must be retrieved.
+%
+-spec decode_response(integer(), list(), term()) -> {ok, term()} | {error, term()}.
+decode_response(401, _Headers, _Client) ->
+    {error, auth_required};
+decode_response(_Status, _Headers, Client) ->
+    {ok, Body} = hackney:body(Client),
+    {Results} = jiffy:decode(Body),
+    {ok, Results}.
+
+% @doc
+%
+% Invoke the given function with an authorization token. If the function
+% returns with an error indicating an expired authorization token, a new
+% token will be retrieved and the function invoked again. If the token is
+% replaced, the state will be updated with the new token.
+%
+-spec request_with_retry(fun(), credentials(), #state{}) -> {reply, term(), #state{}}.
+request_with_retry(Fun, Credentials, #state{token=undefined}=State) ->
+    {ok, Token} = get_auth_token(Credentials),
+    request_with_retry(Fun, Credentials, State#state{token=Token});
+request_with_retry(Fun, Credentials, State) ->
+    case Fun(State#state.token) of
+        {error, auth_required} ->
+            {ok, Token} = get_auth_token(Credentials),
+            Result = Fun(Token),
+            {reply, Result, State#state{token=Token}};
+        Result -> {reply, Result, State}
+    end.
+
+% @doc
+%
 % Retrieve a read/write authorization token from the remote service, based
 % on the provided credentials, which contains the client email address and
 % the PEM encoded private key.
@@ -119,11 +146,12 @@ make_bucket(PropList) ->
 -spec get_auth_token(credentials()) -> {ok, access_token()}.
 get_auth_token(Creds) ->
     Now = seconds_since_epoch(),
+    Timeout = application:get_env(enenra, auth_timeout, 3600),
     ClaimSet = binary_to_list(base64:encode(jiffy:encode({[
         {<<"iss">>, Creds#credentials.client_email},
         {<<"scope">>, ?READ_WRITE_SCOPE},
         {<<"aud">>, ?AUD_URL},
-        {<<"exp">>, Now + 3600},
+        {<<"exp">>, Now + Timeout},
         {<<"iat">>, Now}
     ]}))),
     JwtPrefix = ?JWT_HEADER ++ "." ++ ClaimSet,

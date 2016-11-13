@@ -1,6 +1,6 @@
 # enenra
 
-An Erlang/OTP library for interfacing with Google Cloud Storage.
+An Erlang/OTP library for interfacing with Google Cloud Storage. Named after the [smoke monster](https://en.wikipedia.org/wiki/Enenra) of Japanese folklore, for no particular reason.
 
 ## Requirements
 

@@ -30,8 +30,8 @@ all() ->
 list_buckets_test(_Config) ->
     Credentials = get_env("GOOGLE_APPLICATION_CREDENTIALS"),
     {ok, Creds} = enenra:load_credentials(Credentials),
-    Buckets = enenra:list_buckets(Creds),
-    ct:log(default, 50, "buckets: ~p", [Buckets]),
+    {ok, Buckets} = enenra:list_buckets(Creds),
+    ?assert(is_list(Buckets)),
     ok.
 
 % Retrieve an environment variable, ensuring it is defined.

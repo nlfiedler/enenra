@@ -68,8 +68,9 @@ load_credentials(Filepath) ->
 %
 % Retrieve the buckets available to the account with the given credentials.
 %
--spec list_buckets(Credentials) -> Buckets
-    when Credentials :: credentials(),
-         Buckets :: [bucket()].
+-spec list_buckets(Credentials) -> {ok, Buckets} | {error, Reason} when
+    Credentials :: credentials(),
+    Buckets :: [bucket()],
+    Reason :: term().
 list_buckets(#credentials{}=Credentials) ->
     gen_server:call(enenra_server, {list_buckets, Credentials}).
