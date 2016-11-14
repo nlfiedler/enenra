@@ -16,8 +16,10 @@ $ rebar3 ct
 
 ## TODO
 
-1. Implement remaining CRUD operations for buckets and objects.
-1. Support other forms of authorization.
+1. Implement CRUD operations for objects.
+1. Ensure bucket names meet at least some of the many [requirements](https://cloud.google.com/storage/docs/naming#requirements).
+1. Support other forms of authorization?
+1. Add code examples to the README and API overview page.
 
 ## Example Usage
 
@@ -30,8 +32,6 @@ Including as a dependency in your release, using rebar...
 ```
 
 Be sure to include `enenra` in the `included_applications` list of your application configuration before building a release.
-
-TODO: add a code example
 
 ## Google Cloud Setup
 

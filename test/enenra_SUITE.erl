@@ -44,24 +44,36 @@ bucket_lifecycle_test(_Config) ->
         class= StorageClass
     },
     {ok, OutBucket} = enenra:insert_bucket(InBucket, Creds),
-    ?assertEqual(OutBucket#bucket.name, Name),
-    ?assertEqual(OutBucket#bucket.location, Region),
-    ?assertEqual(OutBucket#bucket.class, StorageClass),
+    ?assertEqual(Name, OutBucket#bucket.name),
+    ?assertEqual(Region, OutBucket#bucket.location),
+    ?assertEqual(StorageClass, OutBucket#bucket.class),
 
     %
     % retrieve the bucket we just created
     %
     {ok, GetBucket} = enenra:get_bucket(Name, Creds),
-    ?assertEqual(GetBucket#bucket.name, Name),
-    ?assertEqual(GetBucket#bucket.location, Region),
-    ?assertEqual(GetBucket#bucket.class, StorageClass),
+    ?assertEqual(Name, GetBucket#bucket.name),
+    ?assertEqual(Region, GetBucket#bucket.location),
+    ?assertEqual(StorageClass, GetBucket#bucket.class),
 
     %
-    % ensure there is at least one bucket
+    % update the bucket by changing its storage class, which is pretty much
+    % the only thing you _can_ change about a bucket
+    %
+    NewClass = <<"STANDARD">>,
+    {ok, UpBucket} = enenra:update_bucket(Name, [{<<"storageClass">>, NewClass}], Creds),
+    ?assertEqual(Name, UpBucket#bucket.name),
+    ?assertEqual(Region, UpBucket#bucket.location),
+    ?assertEqual(NewClass, UpBucket#bucket.class),
+
+    %
+    % ensure there is at least one bucket and that one of the buckets has
+    % the name we expect
     %
     {ok, Buckets} = enenra:list_buckets(Creds),
     ?assert(is_list(Buckets)),
     ?assert(length(Buckets) > 1),
+    ?assert(lists:any(fun (Elem) -> Elem#bucket.name == Name end, Buckets)),
 
     %
     % remove the bucket (note, this typically incurs an additional cost)

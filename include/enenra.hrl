@@ -5,8 +5,6 @@
 %% license that can be found in the LICENSE file.
 %%
 
--define(READ_WRITE_SCOPE, <<"https://www.googleapis.com/auth/devstorage.read_write">>).
-
 -record(credentials, {
     type :: binary,
     project_id :: binary,

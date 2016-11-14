@@ -22,18 +22,17 @@
 % TODO
 % '''
 %
+% Regarding the authorization scope used for interacting with Google Cloud
+% Storage, the `full-control' scope is used, as that allows modifying
+% existing resources. The `read-write' scope only allows creating and
+% deleting, but not patching.
+%
 -module(enenra).
 
 -include("enenra.hrl").
 
 -export([load_credentials/1]).
--export([list_buckets/1, get_bucket/2, insert_bucket/2, delete_bucket/2]).
-
-%
-% TODO: URI encode the object names
-% TODO: ensure bucket names meet requirements
-%       (https://cloud.google.com/storage/docs/naming#requirements)
-%
+-export([list_buckets/1, get_bucket/2, insert_bucket/2, update_bucket/3, delete_bucket/2]).
 
 % @doc
 %
@@ -99,12 +98,22 @@ insert_bucket(Bucket, #credentials{}=Credentials) ->
 delete_bucket(Name, #credentials{}=Credentials) ->
     gen_server:call(enenra_server, {delete_bucket, Name, Credentials}).
 
-% TODO: update a bucket
+% @doc
+%
+% Update the named bucket with the given properties, using the PATCH method
+% such that only the named fields are modified. To clear a field, the value
+% should be 'null'. Returns the updated bucket resource.
+%
+-spec update_bucket(Name, Bucket, Credentials) -> {ok, Bucket} | {error, Reason} when
+    Credentials :: credentials(),
+    Bucket :: bucket(),
+    Name :: binary() | string(),
+    Reason :: term().
+update_bucket(Name, Bucket, #credentials{}=Credentials) ->
+    gen_server:call(enenra_server, {update_bucket, Name, Bucket, Credentials}).
 
+% TODO: URI encode the object names
 % TODO: upload object
-
 % TODO: list objects
-
 % TODO: fetch object
-
 % TODO: delete object

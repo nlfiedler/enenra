@@ -14,6 +14,11 @@
 -define(AUTH_URL, "https://www.googleapis.com/oauth2/v4/token").
 -define(AUD_URL, <<"https://www.googleapis.com/oauth2/v4/token">>).
 
+% read/write is useful for adding and deleting, but that's about it
+-define(READ_WRITE_SCOPE, <<"https://www.googleapis.com/auth/devstorage.read_write">>).
+% full-control is required for updating/patching existing resources
+-define(FULL_CONTROL_SCOPE, <<"https://www.googleapis.com/auth/devstorage.full_control">>).
+
 % Base64 encoding of JSON {"alg":"RS256","typ":"JWT"}
 -define(JWT_HEADER, "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9").
 -define(GRANT_TYPE, "urn:ietf:params:oauth:grant-type:jwt-bearer").
@@ -50,6 +55,11 @@ handle_call({insert_bucket, Bucket, Credentials}, _From, State) ->
         insert_bucket(Bucket, Credentials, Token)
     end,
     request_with_retry(InsertBucket, Credentials, State);
+handle_call({update_bucket, Name, Bucket, Credentials}, _From, State) ->
+    UpdateBucket = fun(Token) ->
+        update_bucket(Name, Bucket, Token)
+    end,
+    request_with_retry(UpdateBucket, Credentials, State);
 handle_call({delete_bucket, Name, Credentials}, _From, State) ->
     DeleteBucket = fun(Token) ->
         delete_bucket(Name, Token)
@@ -132,6 +142,28 @@ insert_bucket(Bucket, Credentials, Token) ->
 
 % @doc
 %
+% Update an existing bucket with the properties defined in the given
+% property list (uses the PATCH method to update only those fields). The
+% names and values should be binary instead of string type. To clear an
+% existing field, set the field value to 'null'.
+%
+-spec update_bucket(string() | binary(), list(), access_token()) -> {ok, bucket()}.
+update_bucket(Name, Bucket, Token) when is_binary(Name) ->
+    update_bucket(binary_to_list(Name), Bucket, Token);
+update_bucket(Name, Bucket, Token) when is_list(Name) ->
+    Url = ?BASE_URL ++ Name,
+    ReqHeaders = add_auth_header(Token, [
+        {"Content-Type", "application/json"}
+    ]),
+    ReqBody = binary_to_list(jiffy:encode({Bucket})),
+    {ok, Status, Headers, Client} = hackney:request(patch, Url, ReqHeaders, ReqBody),
+    case decode_response(Status, Headers, Client) of
+        {ok, Body} -> {ok, make_bucket(Body)};
+        R -> R
+    end.
+
+% @doc
+%
 % Deletes the named bucket. Returns ok upon success, or {error, Reason} if
 % an error occurred.
 %
@@ -185,12 +217,18 @@ add_auth_header(Token, Headers) ->
 -spec decode_response(integer(), list(), term()) -> {ok, term()} | {error, term()}.
 decode_response(401, _Headers, _Client) ->
     {error, auth_required};
+decode_response(403, _Headers, _Client) ->
+    {error, forbidden};
 decode_response(409, _Headers, _Client) ->
     {error, conflict};
+decode_response(200, _Headers, Client) ->
+    {ok, Body} = hackney:body(Client),
+    {Results} = jiffy:decode(Body),
+    {ok, Results};
 decode_response(_Status, _Headers, Client) ->
     {ok, Body} = hackney:body(Client),
     {Results} = jiffy:decode(Body),
-    {ok, Results}.
+    {error, Results}.
 
 % @doc
 %
@@ -224,7 +262,7 @@ get_auth_token(Creds) ->
     Timeout = application:get_env(enenra, auth_timeout, 3600),
     ClaimSet = binary_to_list(base64:encode(jiffy:encode({[
         {<<"iss">>, Creds#credentials.client_email},
-        {<<"scope">>, ?READ_WRITE_SCOPE},
+        {<<"scope">>, ?FULL_CONTROL_SCOPE},
         {<<"aud">>, ?AUD_URL},
         {<<"exp">>, Now + Timeout},
         {<<"iat">>, Now}
