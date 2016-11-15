@@ -45,20 +45,44 @@
 
 -record(bucket, {
     id :: binary,
-    project :: binary,
+    projectNumber :: binary,
     name :: binary,
-    created :: binary,
+    timeCreated :: binary,
     updated :: binary,
     location :: binary,
-    class :: binary
+    storageClass :: binary
 }).
 -type bucket() :: #bucket{
     id :: binary,
-    project :: binary,
+    projectNumber :: binary,
     name :: binary,
-    created :: binary,
+    timeCreated :: binary,
     updated :: binary,
     location :: binary,
-    class :: binary
+    storageClass :: binary
 }.
 -export_type([bucket/0]).
+
+-record(object, {
+    id :: binary,
+    name :: binary,
+    bucket :: binary,
+    contentType :: binary,
+    timeCreated :: binary,
+    updated :: binary,
+    storageClass :: binary,
+    size :: integer(),
+    md5Hash :: binary
+}).
+-type object() :: #object{
+    id :: binary,
+    name :: binary,
+    bucket :: binary,
+    contentType :: binary,
+    timeCreated :: binary,
+    updated :: binary,
+    storageClass :: binary,
+    size :: integer(),
+    md5Hash :: binary
+}.
+-export_type([object/0]).

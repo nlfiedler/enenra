@@ -16,7 +16,6 @@ $ rebar3 ct
 
 ## TODO
 
-1. Implement CRUD operations for objects.
 1. Ensure bucket names meet at least some of the many [requirements](https://cloud.google.com/storage/docs/naming#requirements).
 1. Support other forms of authorization?
 1. Add code examples to the README and API overview page.

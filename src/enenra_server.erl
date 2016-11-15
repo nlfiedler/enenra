@@ -10,8 +10,9 @@
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--define(BASE_URL, "https://www.googleapis.com/storage/v1/b/").
--define(AUTH_URL, "https://www.googleapis.com/oauth2/v4/token").
+-define(BASE_URL, <<"https://www.googleapis.com/storage/v1/b/">>).
+-define(UPLOAD_URL, <<"https://www.googleapis.com/upload/storage/v1/b/">>).
+-define(AUTH_URL, <<"https://www.googleapis.com/oauth2/v4/token">>).
 -define(AUD_URL, <<"https://www.googleapis.com/oauth2/v4/token">>).
 
 % read/write is useful for adding and deleting, but that's about it
@@ -64,7 +65,32 @@ handle_call({delete_bucket, Name, Credentials}, _From, State) ->
     DeleteBucket = fun(Token) ->
         delete_bucket(Name, Token)
     end,
-    request_with_retry(DeleteBucket, Credentials, State).
+    request_with_retry(DeleteBucket, Credentials, State);
+handle_call({list_objects, BucketName, Credentials}, _From, State) ->
+    ListObjects = fun(Token) ->
+        list_objects(BucketName, Token)
+    end,
+    request_with_retry(ListObjects, Credentials, State);
+handle_call({upload_object, Object, Filename, Credentials}, _From, State) ->
+    UploadObject = fun(Token) ->
+        upload_object(Object, Filename, Token)
+    end,
+    request_with_retry(UploadObject, Credentials, State);
+handle_call({download_object, BucketName, ObjectName, Filename, Credentials}, _From, State) ->
+    DownloadObject = fun(Token) ->
+        download_object(BucketName, ObjectName, Filename, Token)
+    end,
+    request_with_retry(DownloadObject, Credentials, State);
+handle_call({get_object, BucketName, ObjectName, Credentials}, _From, State) ->
+    GetObject = fun(Token) ->
+        get_object(BucketName, ObjectName, Token)
+    end,
+    request_with_retry(GetObject, Credentials, State);
+handle_call({delete_object, BucketName, ObjectName, Credentials}, _From, State) ->
+    DeleteObject = fun(Token) ->
+        delete_object(BucketName, ObjectName, Token)
+    end,
+    request_with_retry(DeleteObject, Credentials, State).
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -86,15 +112,15 @@ code_change(_OldVsn, State, _Extra) ->
 %
 % Retrieve a list of the available buckets.
 %
--spec list_buckets(credentials(), access_token()) -> {ok, [bucket()]}.
+-spec list_buckets(credentials(), access_token()) -> {ok, [bucket()]} | {error, term()}.
 list_buckets(Credentials, Token) ->
     Project = Credentials#credentials.project_id,
-    Url = hackney_url:make_url(?BASE_URL, "", [{"project", Project}]),
+    Url = hackney_url:make_url(?BASE_URL, <<"">>, [{"project", Project}]),
     ReqHeaders = add_auth_header(Token, []),
     {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
     case decode_response(Status, Headers, Client) of
         {ok, Body} ->
-            Items = proplists:get_value(<<"items">>, Body),
+            Items = proplists:get_value(<<"items">>, Body, []),
             {ok, [make_bucket(Item) || {Item} <- Items]};
         R -> R
     end.
@@ -103,11 +129,9 @@ list_buckets(Credentials, Token) ->
 %
 % Retrieve the named bucket.
 %
--spec get_bucket(string() | binary(), access_token()) -> {ok, bucket()}.
-get_bucket(Name, Token) when is_binary(Name) ->
-    get_bucket(binary_to_list(Name), Token);
-get_bucket(Name, Token) when is_list(Name) ->
-    Url = ?BASE_URL ++ Name,
+-spec get_bucket(binary(), access_token()) -> {ok, bucket()} | {error, term()}.
+get_bucket(Name, Token) ->
+    Url = <<?BASE_URL/binary, Name/binary>>,
     ReqHeaders = add_auth_header(Token, []),
     {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
     case decode_response(Status, Headers, Client) of
@@ -121,17 +145,17 @@ get_bucket(Name, Token) when is_list(Name) ->
 % are used (and are required). If the bucket already exists, the existing
 % properties are retrieved and returned.
 %
--spec insert_bucket(bucket(), credentials(), access_token()) -> {ok, bucket()}.
+-spec insert_bucket(bucket(), credentials(), access_token()) -> {ok, bucket()} | {error, term()}.
 insert_bucket(Bucket, Credentials, Token) ->
     Project = Credentials#credentials.project_id,
-    Url = hackney_url:make_url(?BASE_URL, "", [{"project", Project}]),
+    Url = hackney_url:make_url(?BASE_URL, <<"">>, [{"project", Project}]),
     ReqHeaders = add_auth_header(Token, [
         {"Content-Type", "application/json"}
     ]),
     ReqBody = binary_to_list(jiffy:encode({[
         {<<"name">>, Bucket#bucket.name},
         {<<"location">>, Bucket#bucket.location},
-        {<<"storageClass">>, Bucket#bucket.class}
+        {<<"storageClass">>, Bucket#bucket.storageClass}
     ]})),
     {ok, Status, Headers, Client} = hackney:request(post, Url, ReqHeaders, ReqBody),
     case decode_response(Status, Headers, Client) of
@@ -147,11 +171,9 @@ insert_bucket(Bucket, Credentials, Token) ->
 % names and values should be binary instead of string type. To clear an
 % existing field, set the field value to 'null'.
 %
--spec update_bucket(string() | binary(), list(), access_token()) -> {ok, bucket()}.
-update_bucket(Name, Bucket, Token) when is_binary(Name) ->
-    update_bucket(binary_to_list(Name), Bucket, Token);
-update_bucket(Name, Bucket, Token) when is_list(Name) ->
-    Url = ?BASE_URL ++ Name,
+-spec update_bucket(binary(), list(), access_token()) -> {ok, bucket()} | {error, term()}.
+update_bucket(Name, Bucket, Token) ->
+    Url = <<?BASE_URL/binary, Name/binary>>,
     ReqHeaders = add_auth_header(Token, [
         {"Content-Type", "application/json"}
     ]),
@@ -167,11 +189,9 @@ update_bucket(Name, Bucket, Token) when is_list(Name) ->
 % Deletes the named bucket. Returns ok upon success, or {error, Reason} if
 % an error occurred.
 %
--spec delete_bucket(string() | binary(), access_token()) -> {ok, string()}.
-delete_bucket(Name, Token) when is_binary(Name) ->
-    delete_bucket(binary_to_list(Name), Token);
-delete_bucket(Name, Token) when is_list(Name) ->
-    Url = ?BASE_URL ++ Name,
+-spec delete_bucket(binary(), access_token()) -> {ok, string()} | {error, term()}.
+delete_bucket(Name, Token) ->
+    Url = <<?BASE_URL/binary, Name/binary>>,
     ReqHeaders = add_auth_header(Token, []),
     {ok, Status, Headers, Client} = hackney:request(delete, Url, ReqHeaders),
     decode_response(Status, Headers, Client).
@@ -180,16 +200,157 @@ delete_bucket(Name, Token) when is_list(Name) ->
 %
 % Construct a bucket record from the given property list.
 %
--spec make_bucket([term()]) -> bucket().
+-spec make_bucket(list()) -> bucket().
 make_bucket(PropList) ->
     #bucket{
         id=proplists:get_value(<<"id">>, PropList),
-        project=proplists:get_value(<<"projectNumber">>, PropList),
+        projectNumber=proplists:get_value(<<"projectNumber">>, PropList),
         name=proplists:get_value(<<"name">>, PropList),
-        created=proplists:get_value(<<"timeCreated">>, PropList),
+        timeCreated=proplists:get_value(<<"timeCreated">>, PropList),
         updated=proplists:get_value(<<"updated">>, PropList),
         location=proplists:get_value(<<"location">>, PropList),
-        class=proplists:get_value(<<"storageClass">>, PropList)
+        storageClass=proplists:get_value(<<"storageClass">>, PropList)
+    }.
+
+% @doc
+%
+% Retrieve a list of the objects stored in the named bucket.
+%
+-spec list_objects(binary(), access_token()) -> {ok, object()} | {error, term()}.
+list_objects(BucketName, Token) ->
+    Url = <<?BASE_URL/binary, BucketName/binary, "/o">>,
+    ReqHeaders = add_auth_header(Token, []),
+    {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
+    case decode_response(Status, Headers, Client) of
+        {ok, Body} ->
+            Items = proplists:get_value(<<"items">>, Body, []),
+            {ok, [make_object(Item) || {Item} <- Items]};
+        R -> R
+    end.
+
+% @doc
+%
+% Upload an object to the named bucket and return {ok, Object} or {error,
+% Reason}, where Object has the updated object properties.
+%
+-spec upload_object(object(), string(), access_token()) -> {ok, object()} | {error, term()}.
+upload_object(Object, Filename, Token) ->
+    BucketName = Object#object.bucket,
+    Url = hackney_url:make_url(
+        ?UPLOAD_URL, <<BucketName/binary, "/o">>, [{"uploadType", "resumable"}]),
+    ReqHeaders = add_auth_header(Token, [
+        {"Content-Type", "application/json; charset=UTF-8"},
+        {"X-Upload-Content-Type", binary_to_list(Object#object.contentType)},
+        {"X-Upload-Content-Length", Object#object.size}
+    ]),
+    ReqBody = binary_to_list(jiffy:encode({[
+        {<<"name">>, Object#object.name},
+        % include the md5 so GCP can verify the upload was successful
+        {<<"md5Hash">>, Object#object.md5Hash}
+    ]})),
+    {ok, Status, Headers, Client} = hackney:request(post, Url, ReqHeaders, ReqBody),
+    case Status of
+        200 ->
+            UploadUrl = proplists:get_value(<<"Location">>, Headers),
+            upload_file(UploadUrl, Object, Filename, Token);
+        _ -> decode_response(Status, Headers, Client)
+    end.
+
+% @doc
+%
+% Upload the named file to the given upload URL and return {ok, Object} or
+% {error, Reason}, where Object has the updated object properties.
+%
+-spec upload_file(binary(), object(), string(), access_token()) -> {ok, object()} | {error, term()}.
+upload_file(Url, Object, Filename, Token) ->
+    ReqHeaders = add_auth_header(Token, [
+        {"Content-Type", Object#object.contentType},
+        {"Content-Length", Object#object.size}
+    ]),
+    ReqBody = {file, Filename},
+    {ok, Status, Headers, Client} = hackney:request(put, Url, ReqHeaders, ReqBody),
+    case decode_response(Status, Headers, Client) of
+        {ok, Body} -> {ok, make_object(Body)};
+        R -> R
+    end.
+
+% @doc
+%
+% Retrieve the object and save to the named file.
+%
+-spec download_object(binary(), binary(), string(), credentials()) -> ok | {error, term()}.
+download_object(BucketName, ObjectName, Filename, Token) ->
+    ON = hackney_url:urlencode(ObjectName),
+    UrlPath = <<BucketName/binary, "/o/", ON/binary>>,
+    Url = hackney_url:make_url(?BASE_URL, UrlPath, [{"alt", "media"}]),
+    ReqHeaders = add_auth_header(Token, []),
+    {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
+    case Status of
+        200 ->
+            {ok, FileHandle} = file:open(Filename, [write]),
+            stream_to_file(FileHandle, Client);
+        _ -> decode_response(Status, Headers, Client)
+    end.
+
+% @doc
+%
+% Stream the response body of the HTTP request to the opened file. Returns
+% ok if successful, or {error, Reason} if not. The file will closed upon
+% successful download.
+%
+-spec stream_to_file(term(), term()) -> ok | {error, term()}.
+stream_to_file(FileHandle, Client) ->
+    case hackney:stream_body(Client) of
+        done -> file:close(FileHandle);
+        {ok, Bin} ->
+            ok = file:write(FileHandle, Bin),
+            stream_to_file(FileHandle, Client);
+        R -> R
+    end.
+
+% @doc
+%
+% Retrieve the properties of the named object in the named bucket.
+%
+-spec get_object(binary(), binary(), credentials()) -> {ok, object()} | {error, term()}.
+get_object(BucketName, ObjectName, Token) ->
+    ON = hackney_url:urlencode(ObjectName),
+    Url = <<?BASE_URL/binary, BucketName/binary, "/o/", ON/binary>>,
+    ReqHeaders = add_auth_header(Token, []),
+    {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
+    case decode_response(Status, Headers, Client) of
+        {ok, Body} -> {ok, make_object(Body)};
+        R -> R
+    end.
+
+% @doc
+%
+% Delete the named object in the named bucket.
+%
+-spec delete_object(binary(), binary(), credentials()) -> ok | {error, term()}.
+delete_object(BucketName, ObjectName, Token) ->
+    ON = hackney_url:urlencode(ObjectName),
+    Url = <<?BASE_URL/binary, BucketName/binary, "/o/", ON/binary>>,
+    ReqHeaders = add_auth_header(Token, []),
+    {ok, Status, Headers, Client} = hackney:request(delete, Url, ReqHeaders),
+    decode_response(Status, Headers, Client).
+
+% @doc
+%
+% Construct an object record from the given property list.
+%
+-spec make_object(list()) -> object().
+make_object(PropList) ->
+    #object{
+        id=proplists:get_value(<<"id">>, PropList),
+        name=proplists:get_value(<<"name">>, PropList),
+        bucket=proplists:get_value(<<"bucket">>, PropList),
+        contentType=proplists:get_value(<<"contentType">>, PropList),
+        timeCreated=proplists:get_value(<<"timeCreated">>, PropList),
+        updated=proplists:get_value(<<"updated">>, PropList),
+        storageClass=proplists:get_value(<<"storageClass">>, PropList),
+        size=proplists:get_value(<<"size">>, PropList),
+        md5Hash=proplists:get_value(<<"md5Hash">>, PropList)
     }.
 
 % @doc
@@ -222,7 +383,7 @@ decode_response(404, _Headers, _Client) ->
     {error, not_found};
 decode_response(409, _Headers, _Client) ->
     {error, conflict};
-decode_response(200, _Headers, Client) ->
+decode_response(Ok, _Headers, Client) when Ok == 200; Ok == 201 ->
     {ok, Body} = hackney:body(Client),
     {Results} = jiffy:decode(Body),
     {ok, Results};
@@ -249,8 +410,7 @@ request_with_retry(Fun, Credentials, State) ->
     case Fun(State#state.token) of
         {error, auth_required} ->
             {ok, Token} = get_auth_token(Credentials),
-            Result = Fun(Token),
-            {reply, Result, State#state{token=Token}};
+            {reply, Fun(Token), State#state{token=Token}};
         Result -> {reply, Result, State}
     end.
 

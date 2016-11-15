@@ -13,8 +13,8 @@
 %
 % `enenra' is an Erlang/OTP library for creating buckets, uploading objects,
 % and otherwise managing said resources on Google Cloud Storage. This is
-% done via the HTTP/JSON API described here:
-% https://cloud.google.com/storage/docs/json_api/
+% done via the HTTP/JSON API described in the Google Cloud Storage
+% documentation (https://cloud.google.com/storage/docs/json_api/).
 %
 % Some example usage:
 %
@@ -31,8 +31,9 @@
 
 -include("enenra.hrl").
 
--export([load_credentials/1]).
+-export([load_credentials/1, compute_md5/1]).
 -export([list_buckets/1, get_bucket/2, insert_bucket/2, update_bucket/3, delete_bucket/2]).
+-export([list_objects/2, upload_file/3, download_object/4, get_object/3, delete_object/3]).
 
 % @doc
 %
@@ -70,7 +71,7 @@ list_buckets(#credentials{}=Credentials) ->
 %
 -spec get_bucket(Name, Credentials) -> {ok, Bucket} | {error, Reason} when
     Credentials :: credentials(),
-    Name :: binary() | string(),
+    Name :: binary(),
     Bucket :: bucket(),
     Reason :: term().
 get_bucket(Name, #credentials{}=Credentials) ->
@@ -93,7 +94,7 @@ insert_bucket(Bucket, #credentials{}=Credentials) ->
 %
 -spec delete_bucket(Name, Credentials) -> {ok, Name} | {error, Reason} when
     Credentials :: credentials(),
-    Name :: binary() | string(),
+    Name :: binary(),
     Reason :: term().
 delete_bucket(Name, #credentials{}=Credentials) ->
     gen_server:call(enenra_server, {delete_bucket, Name, Credentials}).
@@ -107,13 +108,113 @@ delete_bucket(Name, #credentials{}=Credentials) ->
 -spec update_bucket(Name, Bucket, Credentials) -> {ok, Bucket} | {error, Reason} when
     Credentials :: credentials(),
     Bucket :: bucket(),
-    Name :: binary() | string(),
+    Name :: binary(),
     Reason :: term().
 update_bucket(Name, Bucket, #credentials{}=Credentials) ->
     gen_server:call(enenra_server, {update_bucket, Name, Bucket, Credentials}).
 
-% TODO: URI encode the object names
-% TODO: upload object
-% TODO: list objects
-% TODO: fetch object
-% TODO: delete object
+% @doc
+%
+% Retrieve the objects within the named bucket.
+%
+-spec list_objects(BucketName, Credentials) -> {ok, Objects} | {error, Reason} when
+    BucketName :: binary(),
+    Credentials :: credentials(),
+    Objects :: [object()],
+    Reason :: term().
+list_objects(BucketName, Credentials) ->
+    gen_server:call(enenra_server, {list_objects, BucketName, Credentials}).
+
+% @doc
+%
+% Upload the file identified by Filename, with the properties given by
+% Object, to the bucket named in the Object#bucket field. The returned
+% Object value will have the updated properties.
+%
+-spec upload_file(Filename, Object, Credentials) -> {ok, Object} | {error, Reason} when
+    Filename :: string(),
+    Object :: object(),
+    Credentials :: credentials(),
+    Reason :: term().
+upload_file(Filename, Object, Credentials) ->
+    gen_server:call(enenra_server, {upload_object, Object, Filename, Credentials}).
+
+% @doc
+%
+% Retrieve the object named ObjectName in the bucket named BucketName,
+% storing the result in the file named Filename. Returns 'ok' on success,
+% or {error, Reason} if error.
+%
+-spec download_object(BucketName, ObjectName, Filename, Credentials) -> ok | {error, Reason} when
+    Filename :: string(),
+    BucketName :: binary(),
+    ObjectName :: binary(),
+    Credentials :: credentials(),
+    Reason :: term().
+download_object(BucketName, ObjectName, Filename, Credentials) ->
+    gen_server:call(enenra_server, {download_object, BucketName, ObjectName, Filename, Credentials}).
+
+% @doc
+%
+% Retrieve the properties of the object named ObjectName in the bucket
+% named BucketName, returning {ok, Object} if successful, or {error,
+% Reason} if an error occurred.
+%
+-spec get_object(BucketName, ObjectName, Credentials) -> {ok, Object} | {error, Reason} when
+    BucketName :: binary(),
+    ObjectName :: binary(),
+    Credentials :: credentials(),
+    Object :: object(),
+    Reason :: term().
+get_object(BucketName, ObjectName, Credentials) ->
+    gen_server:call(enenra_server, {get_object, BucketName, ObjectName, Credentials}).
+
+% @doc
+%
+% Delete the object named ObjectName in the bucket named BucketName,
+% returning 'ok' if successful, or {error, Reason} if an error occurred.
+%
+-spec delete_object(BucketName, ObjectName, Credentials) -> ok | {error, Reason} when
+    BucketName :: binary(),
+    ObjectName :: binary(),
+    Credentials :: credentials(),
+    Reason :: term().
+delete_object(BucketName, ObjectName, Credentials) ->
+    gen_server:call(enenra_server, {delete_object, BucketName, ObjectName, Credentials}).
+
+% @doc
+%
+% Compute the MD5 checksum for the named file, returning the Base64 encoded
+% result. This value can be given in the upload request and Google Cloud
+% Storage will verify the upload was successful by comparing the checksum
+% with its own computation.
+%
+-spec compute_md5(Filename) -> {ok, Digest} | {error, Reason} when
+    Filename :: string(),
+    Digest :: string(),
+    Reason :: term().
+compute_md5(Filename) ->
+    {ok, Filehandle} = file:open(Filename, [read, binary, read_ahead]),
+    Context = erlang:md5_init(),
+    case compute_md5(Filehandle, Context) of
+        {ok, Digest} -> {ok, base64:encode(Digest)};
+        R -> R
+    end.
+
+% @doc
+%
+% Helper function that recursively computes the MD5 of the opened file in
+% 64KB chunks. The file will be closed upon successful completion.
+%
+compute_md5(Filehandle, Context) ->
+    case file:read(Filehandle, 65536) of
+        {ok, Data} ->
+            NewContext = erlang:md5_update(Context, Data),
+            compute_md5(Filehandle, NewContext);
+        eof ->
+            case file:close(Filehandle) of
+                ok -> {ok, erlang:md5_final(Context)};
+                RR -> RR
+            end;
+        R -> R
+    end.
