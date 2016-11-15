@@ -173,11 +173,8 @@ delete_bucket(Name, Token) when is_binary(Name) ->
 delete_bucket(Name, Token) when is_list(Name) ->
     Url = ?BASE_URL ++ Name,
     ReqHeaders = add_auth_header(Token, []),
-    {ok, Status, _Headers, Client} = hackney:request(delete, Url, ReqHeaders),
-    case Status of
-        Ok when Ok == 200; Ok == 204 -> ok;
-        _S -> {ok, Body} = hackney:body(Client), {error, Body}
-    end.
+    {ok, Status, Headers, Client} = hackney:request(delete, Url, ReqHeaders),
+    decode_response(Status, Headers, Client).
 
 % @doc
 %
@@ -210,21 +207,28 @@ add_auth_header(Token, Headers) ->
 
 % @doc
 %
-% Based on the response, return {ok, Body} or {error, Reason}. The body is
-% the decoded JSON response from the server. The error 'auth_required'
-% indicates a new authorization token must be retrieved.
+% Based on the response, return {ok, Body}, ok, or {error, Reason}. The
+% body is the decoded JSON response from the server. The error
+% 'auth_required' indicates a new authorization token must be retrieved. A
+% 204 returns 'ok', while a 403 returns {error, forbidden}, 404 returns
+% {error, not_found}, 409 returns {error, conflict}.
 %
 -spec decode_response(integer(), list(), term()) -> {ok, term()} | {error, term()}.
 decode_response(401, _Headers, _Client) ->
     {error, auth_required};
 decode_response(403, _Headers, _Client) ->
     {error, forbidden};
+decode_response(404, _Headers, _Client) ->
+    {error, not_found};
 decode_response(409, _Headers, _Client) ->
     {error, conflict};
 decode_response(200, _Headers, Client) ->
     {ok, Body} = hackney:body(Client),
     {Results} = jiffy:decode(Body),
     {ok, Results};
+decode_response(204, _Headers, _Client) ->
+    % nothing to decode
+    ok;
 decode_response(_Status, _Headers, Client) ->
     {ok, Body} = hackney:body(Client),
     {Results} = jiffy:decode(Body),

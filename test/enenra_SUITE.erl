@@ -49,6 +49,12 @@ bucket_lifecycle_test(_Config) ->
     ?assertEqual(StorageClass, OutBucket#bucket.class),
 
     %
+    % inserting a bucket should be idempotent and return the same record
+    %
+    {ok, OutBucket2} = enenra:insert_bucket(InBucket, Creds),
+    ?assertEqual(OutBucket, OutBucket2),
+
+    %
     % retrieve the bucket we just created
     %
     {ok, GetBucket} = enenra:get_bucket(Name, Creds),
@@ -79,6 +85,7 @@ bucket_lifecycle_test(_Config) ->
     % remove the bucket (note, this typically incurs an additional cost)
     %
     ok = enenra:delete_bucket(Name, Creds),
+    {error, not_found} = enenra:delete_bucket(Name, Creds),
     ok.
 
 % Retrieve an environment variable, ensuring it is defined.
