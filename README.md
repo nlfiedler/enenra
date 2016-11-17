@@ -11,8 +11,11 @@ An Erlang/OTP library for interfacing with Google Cloud Storage. Named after the
 
 ```
 $ rebar3 compile
+$ export GOOGLE_APPLICATION_CREDENTIALS=~/.your_gcp_credentials.json
 $ rebar3 ct
 ```
+
+Note that the test suite expects to find an environment variable named `GOOGLE_APPLICATION_CREDENTIALS` which specifies the path to your Google Cloud Platform service credentials. This JSON formatted file is created via the Cloud Console, as described in the setup section below. This file contains your private key, so be sure to store this file with permissions that prevent exposure to third parties.
 
 ## TODO
 
