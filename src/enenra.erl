@@ -62,7 +62,7 @@ load_credentials(Filepath) ->
     Credentials :: credentials(),
     Buckets :: [bucket()],
     Reason :: term().
-list_buckets(#credentials{}=Credentials) ->
+list_buckets(Credentials) ->
     gen_server:call(enenra_server, {list_buckets, Credentials}).
 
 % @doc
@@ -74,7 +74,7 @@ list_buckets(#credentials{}=Credentials) ->
     Name :: binary(),
     Bucket :: bucket(),
     Reason :: term().
-get_bucket(Name, #credentials{}=Credentials) ->
+get_bucket(Name, Credentials) ->
     gen_server:call(enenra_server, {get_bucket, Name, Credentials}).
 
 % @doc
@@ -85,7 +85,7 @@ get_bucket(Name, #credentials{}=Credentials) ->
     Credentials :: credentials(),
     Bucket :: bucket(),
     Reason :: term().
-insert_bucket(Bucket, #credentials{}=Credentials) ->
+insert_bucket(Bucket, Credentials) ->
     gen_server:call(enenra_server, {insert_bucket, Bucket, Credentials}).
 
 % @doc
@@ -96,7 +96,7 @@ insert_bucket(Bucket, #credentials{}=Credentials) ->
     Credentials :: credentials(),
     Name :: binary(),
     Reason :: term().
-delete_bucket(Name, #credentials{}=Credentials) ->
+delete_bucket(Name, Credentials) ->
     gen_server:call(enenra_server, {delete_bucket, Name, Credentials}).
 
 % @doc
@@ -110,7 +110,7 @@ delete_bucket(Name, #credentials{}=Credentials) ->
     Bucket :: bucket(),
     Name :: binary(),
     Reason :: term().
-update_bucket(Name, Bucket, #credentials{}=Credentials) ->
+update_bucket(Name, Bucket, Credentials) ->
     gen_server:call(enenra_server, {update_bucket, Name, Bucket, Credentials}).
 
 % @doc
