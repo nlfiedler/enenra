@@ -33,7 +33,8 @@
 
 -export([load_credentials/1, compute_md5/1]).
 -export([list_buckets/1, get_bucket/2, insert_bucket/2, update_bucket/3, delete_bucket/2]).
--export([list_objects/2, upload_file/3, download_object/4, get_object/3, delete_object/3]).
+-export([list_objects/2, get_object/3, update_object/4, delete_object/3]).
+-export([upload_file/3, download_object/4]).
 
 % @doc
 %
@@ -105,13 +106,14 @@ delete_bucket(Name, Credentials) ->
 % such that only the named fields are modified. To clear a field, the value
 % should be 'null'. Returns the updated bucket resource.
 %
--spec update_bucket(Name, Bucket, Credentials) -> {ok, Bucket} | {error, Reason} when
+-spec update_bucket(Name, Properties, Credentials) -> {ok, Bucket} | {error, Reason} when
     Credentials :: credentials(),
+    Properties :: list(),
     Bucket :: bucket(),
     Name :: binary(),
     Reason :: term().
-update_bucket(Name, Bucket, Credentials) ->
-    gen_server:call(enenra_server, {update_bucket, Name, Bucket, Credentials}).
+update_bucket(Name, Properties, Credentials) ->
+    gen_server:call(enenra_server, {update_bucket, Name, Properties, Credentials}).
 
 % @doc
 %
@@ -168,6 +170,22 @@ download_object(BucketName, ObjectName, Filename, Credentials) ->
     Reason :: term().
 get_object(BucketName, ObjectName, Credentials) ->
     gen_server:call(enenra_server, {get_object, BucketName, ObjectName, Credentials}).
+
+% @doc
+%
+% Update the object in the named bucket, using the PATCH method such that
+% only the named fields are modified. To clear a field, the value should be
+% 'null'. Returns the updated object resource.
+%
+-spec update_object(BucketName, ObjectName, Properties, Credentials) -> {ok, Object} | {error, Reason} when
+    Credentials :: credentials(),
+    Properties :: list(),
+    Object :: object(),
+    BucketName :: binary(),
+    ObjectName :: binary(),
+    Reason :: term().
+update_object(BucketName, ObjectName, Properties, Credentials) ->
+    gen_server:call(enenra_server, {update_object, BucketName, ObjectName, Properties, Credentials}).
 
 % @doc
 %

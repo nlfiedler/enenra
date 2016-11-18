@@ -138,6 +138,10 @@ object_lifecycle_test(Config) ->
     %
     {ok, OutObject} = enenra:get_object(BucketName, ObjectName, Creds),
     ?assertEqual(Object, OutObject),
+    UpMimeType = <<"image/jegs">>,
+    ObjectProps = [{<<"contentType">>, UpMimeType}],
+    {ok, UpObject} = enenra:update_object(BucketName, ObjectName, ObjectProps, Creds),
+    ?assertEqual(UpObject#object.contentType, UpMimeType),
 
     %
     % download the file again and compare the MD5 to verify

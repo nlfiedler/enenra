@@ -56,9 +56,9 @@ handle_call({insert_bucket, Bucket, Credentials}, _From, State) ->
         insert_bucket(Bucket, Credentials, Token)
     end,
     request_with_retry(InsertBucket, Credentials, State);
-handle_call({update_bucket, Name, Bucket, Credentials}, _From, State) ->
+handle_call({update_bucket, Name, Properties, Credentials}, _From, State) ->
     UpdateBucket = fun(Token) ->
-        update_bucket(Name, Bucket, Token)
+        update_bucket(Name, Properties, Token)
     end,
     request_with_retry(UpdateBucket, Credentials, State);
 handle_call({delete_bucket, Name, Credentials}, _From, State) ->
@@ -90,7 +90,12 @@ handle_call({delete_object, BucketName, ObjectName, Credentials}, _From, State) 
     DeleteObject = fun(Token) ->
         delete_object(BucketName, ObjectName, Token)
     end,
-    request_with_retry(DeleteObject, Credentials, State).
+    request_with_retry(DeleteObject, Credentials, State);
+handle_call({update_object, BucketName, ObjectName, Properties, Credentials}, _From, State) ->
+    UpdateObject = fun(Token) ->
+        update_object(BucketName, ObjectName, Properties, Token)
+    end,
+    request_with_retry(UpdateObject, Credentials, State).
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -172,12 +177,12 @@ insert_bucket(Bucket, Credentials, Token) ->
 % existing field, set the field value to 'null'.
 %
 -spec update_bucket(binary(), list(), access_token()) -> {ok, bucket()} | {error, term()}.
-update_bucket(Name, Bucket, Token) ->
+update_bucket(Name, Properties, Token) ->
     Url = <<?BASE_URL/binary, Name/binary>>,
     ReqHeaders = add_auth_header(Token, [
         {"Content-Type", "application/json"}
     ]),
-    ReqBody = binary_to_list(jiffy:encode({Bucket})),
+    ReqBody = binary_to_list(jiffy:encode({Properties})),
     {ok, Status, Headers, Client} = hackney:request(patch, Url, ReqHeaders, ReqBody),
     case decode_response(Status, Headers, Client) of
         {ok, Body} -> {ok, make_bucket(Body)};
@@ -334,6 +339,27 @@ delete_object(BucketName, ObjectName, Token) ->
     ReqHeaders = add_auth_header(Token, []),
     {ok, Status, Headers, Client} = hackney:request(delete, Url, ReqHeaders),
     decode_response(Status, Headers, Client).
+
+% @doc
+%
+% Update an existing object with the properties defined in the given
+% property list (uses the PATCH method to update only those fields). The
+% names and values should be binary instead of string type. To clear an
+% existing field, set the field value to 'null'.
+%
+-spec update_object(binary(), binary(), list(), access_token()) -> {ok, object()} | {error, term()}.
+update_object(BucketName, ObjectName, Properties, Token) ->
+    ON = hackney_url:urlencode(ObjectName),
+    Url = <<?BASE_URL/binary, BucketName/binary, "/o/", ON/binary>>,
+    ReqHeaders = add_auth_header(Token, [
+        {"Content-Type", "application/json"}
+    ]),
+    ReqBody = binary_to_list(jiffy:encode({Properties})),
+    {ok, Status, Headers, Client} = hackney:request(patch, Url, ReqHeaders, ReqBody),
+    case decode_response(Status, Headers, Client) of
+        {ok, Body} -> {ok, make_object(Body)};
+        R -> R
+    end.
 
 % @doc
 %
