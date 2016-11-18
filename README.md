@@ -19,8 +19,6 @@ Note that the test suite expects to find an environment variable named `GOOGLE_A
 
 ## TODO
 
-1. Ensure bucket names meet at least some of the many [requirements](https://cloud.google.com/storage/docs/naming#requirements).
-1. Support other forms of authorization?
 1. Add code examples to the README and API overview page.
 
 ## Example Usage

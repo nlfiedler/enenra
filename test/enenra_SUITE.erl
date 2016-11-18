@@ -25,12 +25,15 @@ end_per_suite(_Config) ->
 all() ->
     [
         bucket_lifecycle_test,
-        object_lifecycle_test
+        object_lifecycle_test,
+        bucket_name_validation_test
     ].
 
 bucket_lifecycle_test(_Config) ->
     Credentials = get_env("GOOGLE_APPLICATION_CREDENTIALS"),
     {ok, Creds} = enenra:load_credentials(Credentials),
+
+    {error, invalid_chars} = enenra:insert_bucket(#bucket{name= <<"foo:bar">>}, Creds),
 
     %
     % create a new, uniquely named bucket
@@ -158,6 +161,71 @@ object_lifecycle_test(Config) ->
     ok = enenra:delete_object(BucketName, ObjectName, Creds),
     {error, not_found} = enenra:get_object(BucketName, ObjectName, Creds),
     ok = enenra:delete_bucket(BucketName, Creds),
+    ok.
+
+bucket_name_validation_test(_Config) ->
+    %
+    % input must be a binary
+    %
+    {error, badarg} = enenra:validate_bucket_name("foobar"),
+
+    %
+    % Bucket names cannot begin with the "goog" prefix.
+    % Bucket names cannot contain "google"...
+    %
+    % However, common misspellings are not checked.
+    %
+    {error, google} = enenra:validate_bucket_name(<<"googbar">>),
+    {error, google} = enenra:validate_bucket_name(<<"thegooglecloud">>),
+    ok = enenra:validate_bucket_name(<<"thegoooglecloud">>),
+
+    %
+    % Bucket names cannot be represented as an IP address in dotted-decimal
+    % notation (for example, 192.168.5.4).
+    %
+    % However, no actual domain name validation is performed
+    %
+    {error, ip_address} = enenra:validate_bucket_name(<<"192.168.1.71">>),
+    ok = enenra:validate_bucket_name(<<"192.foo.1.71">>),
+    ok = enenra:validate_bucket_name(<<"example.com.bucket">>),
+
+    %
+    % Bucket names must contain 3 to 63 characters. Names containing dots
+    % can contain up to 222 characters, but each dot-separated component
+    % can be no longer than 63 characters.
+    %
+    {error, length} = enenra:validate_bucket_name(<<"fo">>),
+    {error, length} = enenra:validate_bucket_name(
+        <<"foobar0123456789foobar0123456789foobar0123456789foobar0123456789foobar">>),
+    {error, length} = enenra:validate_bucket_name(
+        <<"foo.foobar0123456789foobar0123456789foobar0123456789foobar0123456789foobar">>),
+    ok = enenra:validate_bucket_name(
+        <<"foobar0123456789foobar0123456789.foobar0123456789foobar0123456789foobar">>),
+
+    %
+    % Bucket names must start and end with a number or letter.
+    % Bucket names must contain only lowercase letters, numbers, dashes
+    % (-), underscores (_), and dots (.).
+    %
+    {error, length} = enenra:validate_bucket_name(<<".foobar">>),
+    {error, length} = enenra:validate_bucket_name(<<"foobar.">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"FOOBAR">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"-foobar">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"foobar-">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"_foobar">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"foobar_">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"foo?bar">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"foo:bar">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"foo&bar">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"foo*bar">>),
+    {error, invalid_chars} = enenra:validate_bucket_name(<<"foo^bar">>),
+
+    ok = enenra:validate_bucket_name(<<"foobar">>),
+    ok = enenra:validate_bucket_name(<<"0foobar">>),
+    ok = enenra:validate_bucket_name(<<"foobar0">>),
+    ok = enenra:validate_bucket_name(<<"foo_bar">>),
+    ok = enenra:validate_bucket_name(<<"foo-bar">>),
+    ok = enenra:validate_bucket_name(<<"foo.bar">>),
     ok.
 
 % Retrieve an environment variable, ensuring it is defined.

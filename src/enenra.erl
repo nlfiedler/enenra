@@ -31,7 +31,7 @@
 
 -include("enenra.hrl").
 
--export([load_credentials/1, compute_md5/1]).
+-export([load_credentials/1, compute_md5/1, validate_bucket_name/1]).
 -export([list_buckets/1, get_bucket/2, insert_bucket/2, update_bucket/3, delete_bucket/2]).
 -export([list_objects/2, get_object/3, update_object/4, delete_object/3]).
 -export([upload_file/3, download_object/4]).
@@ -87,7 +87,10 @@ get_bucket(Name, Credentials) ->
     Bucket :: bucket(),
     Reason :: term().
 insert_bucket(Bucket, Credentials) ->
-    gen_server:call(enenra_server, {insert_bucket, Bucket, Credentials}).
+    case validate_bucket_name(Bucket#bucket.name) of
+        ok -> gen_server:call(enenra_server, {insert_bucket, Bucket, Credentials});
+        R -> R
+    end.
 
 % @doc
 %
@@ -235,4 +238,65 @@ compute_md5(Filehandle, Context) ->
                 RR -> RR
             end;
         R -> R
+    end.
+
+% @doc
+%
+% Determine if the proposed bucket name passes some basic requirements for
+% use with Google Cloud Storage. Note that no domain name verification is
+% performed, only cursory examination of the name itself. In other words,
+% no DNS queries are performed for this validation.
+%
+% This function is called only for the bucket insert operation.
+%
+% See [https://cloud.google.com/storage/docs/naming#requirements] for more
+% details on the many requirements.
+%
+-spec validate_bucket_name(Name) -> ok | {error, Reason} when
+    Name :: binary(),
+    Reason :: term().
+validate_bucket_name(Name) when not is_binary(Name) ->
+    {error, badarg};
+validate_bucket_name(Name) when byte_size(Name) < 3; byte_size(Name) > 222 ->
+    % Name too short to too long.
+    {error, length};
+validate_bucket_name(<<"goog", _Rest/binary>>) ->
+    % Bucket names cannot begin with the "goog" prefix.
+    {error, google};
+validate_bucket_name(Name) ->
+    case binary:match(Name, <<"google">>) of
+        nomatch -> validate_bucket_name_length(Name);
+        _R -> {error, google}
+    end.
+
+% Bucket names must contain 3 to 63 characters. Names containing dots can
+% contain up to 222 characters, but each dot-separated component can be no
+% longer than 63 characters.
+%
+validate_bucket_name_length(Name) ->
+    L = binary:split(Name, <<".">>),
+    case lists:any(fun (Part) -> byte_size(Part) < 3 orelse byte_size(Part) > 63 end, L) of
+        true -> {error, length};
+        false -> validate_bucket_name_ip(Name)
+    end.
+
+% Bucket names cannot be represented as an IP address in dotted-decimal
+% notation (for example, 192.168.5.4).
+%
+validate_bucket_name_ip(Name) ->
+    case re:run(Name, <<"\\d+\\.\\d+\\.\\d+\\.\\d+">>) of
+        nomatch -> validate_bucket_name_chars(Name);
+        _R -> {error, ip_address}
+    end.
+
+% Bucket names must contain only lowercase letters, numbers, dashes (-),
+% underscores (_), and dots (.). Names containing dots require
+% verification.
+%
+% Bucket names must start and end with a number or letter.
+%
+validate_bucket_name_chars(Name) ->
+    case re:run(Name, <<"^[a-z0-9][a-z0-9-_.]+[a-z0-9]$">>) of
+        nomatch -> {error, invalid_chars};
+        _R -> ok
     end.
