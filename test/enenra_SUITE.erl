@@ -87,6 +87,7 @@ bucket_lifecycle_test(_Config) ->
     %
     ok = enenra:delete_bucket(Name, Creds),
     {error, not_found} = enenra:delete_bucket(Name, Creds),
+    {error, not_found} = enenra:get_bucket(Name, Creds),
     ok.
 
 object_lifecycle_test(Config) ->
@@ -155,6 +156,7 @@ object_lifecycle_test(Config) ->
     % clean up by removing the object and bucket
     %
     ok = enenra:delete_object(BucketName, ObjectName, Creds),
+    {error, not_found} = enenra:get_object(BucketName, ObjectName, Creds),
     ok = enenra:delete_bucket(BucketName, Creds),
     ok.
 

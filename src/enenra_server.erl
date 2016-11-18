@@ -21,8 +21,8 @@
 -define(FULL_CONTROL_SCOPE, <<"https://www.googleapis.com/auth/devstorage.full_control">>).
 
 % Base64 encoding of JSON {"alg":"RS256","typ":"JWT"}
--define(JWT_HEADER, "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9").
--define(GRANT_TYPE, "urn:ietf:params:oauth:grant-type:jwt-bearer").
+-define(JWT_HEADER, <<"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9">>).
+-define(GRANT_TYPE, <<"urn:ietf:params:oauth:grant-type:jwt-bearer">>).
 
 -include_lib("public_key/include/public_key.hrl").
 -include("enenra.hrl").
@@ -430,14 +430,20 @@ decode_response(_Status, _Headers, Client) ->
 %
 -spec request_with_retry(fun(), credentials(), #state{}) -> {reply, term(), #state{}}.
 request_with_retry(Fun, Credentials, #state{token=undefined}=State) ->
-    {ok, Token} = get_auth_token(Credentials),
-    request_with_retry(Fun, Credentials, State#state{token=Token});
+    case get_auth_token(Credentials) of
+        {ok, Token} ->
+            request_with_retry(Fun, Credentials, State#state{token=Token});
+        Result -> {reply, Result, State}
+    end;
 request_with_retry(Fun, Credentials, State) ->
     case Fun(State#state.token) of
         {error, auth_required} ->
-            {ok, Token} = get_auth_token(Credentials),
-            {reply, Fun(Token), State#state{token=Token}};
-        Result -> {reply, Result, State}
+            case get_auth_token(Credentials) of
+                {ok, Token} ->
+                    {reply, Fun(Token), State#state{token=Token}};
+                ResultI -> {reply, ResultI, State}
+            end;
+        ResultO -> {reply, ResultO, State}
     end.
 
 % @doc
@@ -446,28 +452,33 @@ request_with_retry(Fun, Credentials, State) ->
 % on the provided credentials, which contains the client email address and
 % the PEM encoded private key.
 %
--spec get_auth_token(credentials()) -> {ok, access_token()}.
+-spec get_auth_token(credentials()) -> {ok, access_token()} | {error, term()}.
 get_auth_token(Creds) ->
     Now = seconds_since_epoch(),
+    % GCP seems to completely ignore the timeout value and always expires
+    % in 3600 seconds anyway. Who knows, maybe someday it will work, but
+    % you can forget about automated testing of expiration for now.
     Timeout = application:get_env(enenra, auth_timeout, 3600),
-    ClaimSet = binary_to_list(base64:encode(jiffy:encode({[
+    ClaimSet = base64:encode(jiffy:encode({[
         {<<"iss">>, Creds#credentials.client_email},
         {<<"scope">>, ?FULL_CONTROL_SCOPE},
         {<<"aud">>, ?AUD_URL},
         {<<"exp">>, Now + Timeout},
         {<<"iat">>, Now}
-    ]}))),
-    JwtPrefix = ?JWT_HEADER ++ "." ++ ClaimSet,
+    ]})),
+    JwtPrefix = <<?JWT_HEADER/binary, ".", ClaimSet/binary>>,
     PrivateKey = Creds#credentials.private_key,
-    Signature = compute_signature(PrivateKey, list_to_binary(JwtPrefix)),
-    Jwt = JwtPrefix ++ "." ++ binary_to_list(Signature),
-    Body = {form, [{"grant_type", ?GRANT_TYPE}, {"assertion", Jwt}]},
-    {ok, _Status, _Headers, Client} = hackney:request(post, ?AUTH_URL, [], Body),
-    {ok, Result} = hackney:body(Client),
-    {TokenList} = jiffy:decode(Result),
-    AccessToken = proplists:get_value(<<"access_token">>, TokenList),
-    TokenType = proplists:get_value(<<"token_type">>, TokenList),
-    {ok, #access_token{access_token=AccessToken, token_type=TokenType}}.
+    Signature = compute_signature(PrivateKey, JwtPrefix),
+    Jwt = <<JwtPrefix/binary, ".", Signature/binary>>,
+    ReqBody = {form, [{<<"grant_type">>, ?GRANT_TYPE}, {<<"assertion">>, Jwt}]},
+    {ok, Status, Headers, Client} = hackney:request(post, ?AUTH_URL, [], ReqBody),
+    case decode_response(Status, Headers, Client) of
+        {ok, Token} ->
+            AccessToken = proplists:get_value(<<"access_token">>, Token),
+            TokenType = proplists:get_value(<<"token_type">>, Token),
+            {ok, #access_token{access_token=AccessToken, token_type=TokenType}};
+        R -> R
+    end.
 
 % @doc
 %
