@@ -33,16 +33,6 @@
 }.
 -export_type([access_token/0]).
 
--record(connection, {
-    creds,
-    token
-}).
--type connection() :: #connection{
-    creds :: credentials(),
-    token :: access_token()
-}.
--export_type([connection/0]).
-
 -record(bucket, {
     id :: binary,
     projectNumber :: binary,
