@@ -14,13 +14,7 @@
 % `enenra' is an Erlang/OTP library for creating buckets, uploading objects,
 % and otherwise managing said resources on Google Cloud Storage. This is
 % done via the HTTP/JSON API described in the Google Cloud Storage
-% documentation (https://cloud.google.com/storage/docs/json_api/).
-%
-% Some example usage:
-%
-% ```
-% TODO
-% '''
+% documentation ([https://cloud.google.com/storage/docs/json_api/]).
 %
 % Regarding the authorization scope used for interacting with Google Cloud
 % Storage, the `full-control' scope is used, as that allows modifying
