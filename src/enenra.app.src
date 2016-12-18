@@ -7,6 +7,9 @@
         stdlib,
         hackney
     ]},
+    {included_applications, [
+        jiffy
+    ]},
     {env, []},
     {mod, {enenra_app, []}}
 ]}.
