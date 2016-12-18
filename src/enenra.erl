@@ -252,7 +252,7 @@ compute_md5(Filehandle, Context) ->
 validate_bucket_name(Name) when not is_binary(Name) ->
     {error, badarg};
 validate_bucket_name(Name) when byte_size(Name) < 3; byte_size(Name) > 222 ->
-    % Name too short to too long.
+    % Name too short or too long.
     {error, length};
 validate_bucket_name(<<"goog", _Rest/binary>>) ->
     % Bucket names cannot begin with the "goog" prefix.
