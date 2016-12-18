@@ -27,7 +27,7 @@ To include `enenra` as a dependency in your release, add it to the list of depen
 ]}.
 ```
 
-To have the `enenra` application started automatically, be sure to include `enenra` in the `applications` list of your application configuration before building a release.
+To have the `enenra` application started automatically, be sure to include `enenra` in the `applications` list of your application configuration before building a release. You may also want to add `jiffy` to the list of `included_applications`, and `hackney` to the list of `applications`.
 
 Below is a simple example in which a bucket is created and a file is uploaded to that bucket. This also demonstrates loading the credentials from a file and computing an MD5 checksum of a file to be uploaded to a bucket.
 
