@@ -273,7 +273,8 @@ upload_file(Url, Object, Filename, Token) ->
         {"Content-Length", Object#object.size}
     ]),
     ReqBody = {file, Filename},
-    {ok, Status, Headers, Client} = hackney:request(put, Url, ReqHeaders, ReqBody),
+    Options = [{recv_timeout, infinity}],
+    {ok, Status, Headers, Client} = hackney:request(put, Url, ReqHeaders, ReqBody, Options),
     case decode_response(Status, Headers, Client) of
         {ok, Body} -> {ok, make_object(Body)};
         R -> R
