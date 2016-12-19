@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.1.1] - 2016-12-18
+### Changed
+- Increase timeouts of `gen_server:call` to `infinity` since remote calls can be slow.
+
 ## [0.1.0] - 2016-11-18
 ### Changed
 - Initial release
