@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.1.3] - 2016-12-22
+### Changed
+- Ensure response body is consistently read so connection can be released.
+
 ## [0.1.2] - 2016-12-20
 ### Changed
 - Set timeout for receiving response after a file upload to 60 seconds.

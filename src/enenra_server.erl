@@ -256,6 +256,8 @@ upload_object(Object, Filename, Token) ->
     {ok, Status, Headers, Client} = hackney:request(post, Url, ReqHeaders, ReqBody),
     case Status of
         200 ->
+            % need to read/skip the body to close the connection
+            hackney:skip_body(Client),
             UploadUrl = proplists:get_value(<<"Location">>, Headers),
             upload_file(UploadUrl, Object, Filename, Token);
         _ -> decode_response(Status, Headers, Client)
@@ -404,20 +406,29 @@ add_auth_header(Token, Headers) ->
 % {error, not_found}, 409 returns {error, conflict}.
 %
 -spec decode_response(integer(), list(), term()) -> {ok, term()} | {error, term()}.
-decode_response(401, _Headers, _Client) ->
+decode_response(401, _Headers, Client) ->
+    % need to read/skip the body to close the connection
+    hackney:skip_body(Client),
     {error, auth_required};
-decode_response(403, _Headers, _Client) ->
+decode_response(403, _Headers, Client) ->
+    % need to read/skip the body to close the connection
+    hackney:skip_body(Client),
     {error, forbidden};
-decode_response(404, _Headers, _Client) ->
+decode_response(404, _Headers, Client) ->
+    % need to read/skip the body to close the connection
+    hackney:skip_body(Client),
     {error, not_found};
-decode_response(409, _Headers, _Client) ->
+decode_response(409, _Headers, Client) ->
+    % need to read/skip the body to close the connection
+    hackney:skip_body(Client),
     {error, conflict};
 decode_response(Ok, _Headers, Client) when Ok == 200; Ok == 201 ->
     {ok, Body} = hackney:body(Client),
     {Results} = jiffy:decode(Body),
     {ok, Results};
-decode_response(204, _Headers, _Client) ->
-    % nothing to decode
+decode_response(204, _Headers, Client) ->
+    % need to read/skip the body to close the connection
+    hackney:skip_body(Client),
     ok;
 decode_response(_Status, _Headers, Client) ->
     {ok, Body} = hackney:body(Client),
