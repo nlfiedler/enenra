@@ -86,6 +86,10 @@ Below is a simple example in which a bucket is created and a file is uploaded to
 1. For **Key** type, select the **JSON** key option, then select **Create**. The file automatically downloads to your computer.
 1. Put the `*.json` file you just downloaded in a directory of your choosing. This directory must be private, but accessible to your application.
 
+## Security
+
+The credentials file must be readable by the application, but should not be readable by casual users. Likewise, it is possible, if the server process crashes, that the private keys will end up in the log file (they are an argument to the API, after all). As such, the log files should be protected from unintended exposure to third parties.
+
 ## License
 
 [BSD 3-Clause](https://opensource.org/licenses/BSD-3-Clause), see the `LICENSE` file.
