@@ -278,10 +278,15 @@ upload_file(Url, Object, Filename, Token) ->
     % Receiving the response after an upload can take a few seconds, so
     % give it a chance to compute the MD5 and such before timing out.
     Options = [{recv_timeout, 60000}],
-    {ok, Status, Headers, Client} = hackney:request(put, Url, ReqHeaders, ReqBody, Options),
-    case decode_response(Status, Headers, Client) of
-        {ok, Body} -> {ok, make_object(Body)};
-        R -> R
+    % Errors during upload are not unusual, so return them gracefully
+    % rather than exploding and generating a lengthy crash report.
+    case hackney:request(put, Url, ReqHeaders, ReqBody, Options) of
+        {ok, Status, Headers, Client} ->
+            case decode_response(Status, Headers, Client) of
+                {ok, Body} -> {ok, make_object(Body)};
+                R0 -> R0
+            end;
+        R1 -> R1
     end.
 
 % @doc

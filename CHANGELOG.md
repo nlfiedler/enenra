@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.1.4] - 2016-12-23
+### Changed
+- Return any file upload errors gracefully rather than crashing the gen_server.
+
 ## [0.1.3] - 2016-12-22
 ### Changed
 - Ensure response body is consistently read so connection can be released.
