@@ -429,18 +429,22 @@ decode_response(409, _Headers, Client) ->
     {error, conflict};
 decode_response(Ok, _Headers, Client) when Ok == 200; Ok == 201 ->
     {ok, Body} = hackney:body(Client),
-    % TODO: errors are raised as exceptions, should catch them here
-    {Results} = jiffy:decode(Body),
-    {ok, Results};
+    try jiffy:decode(Body) of
+        {Results} -> {ok, Results}
+    catch
+        Error -> Error
+    end;
 decode_response(204, _Headers, Client) ->
     % need to read/skip the body to close the connection
     hackney:skip_body(Client),
     ok;
 decode_response(_Status, _Headers, Client) ->
     {ok, Body} = hackney:body(Client),
-    % TODO: errors are raised as exceptions, should catch them here
-    {Results} = jiffy:decode(Body),
-    {error, Results}.
+    try jiffy:decode(Body) of
+        {Results} -> {ok, Results}
+    catch
+        Error -> Error
+    end.
 
 % @doc
 %
