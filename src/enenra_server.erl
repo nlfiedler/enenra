@@ -429,6 +429,7 @@ decode_response(409, _Headers, Client) ->
     {error, conflict};
 decode_response(Ok, _Headers, Client) when Ok == 200; Ok == 201 ->
     {ok, Body} = hackney:body(Client),
+    % TODO: errors are raised as exceptions, should catch them here
     {Results} = jiffy:decode(Body),
     {ok, Results};
 decode_response(204, _Headers, Client) ->
@@ -437,6 +438,7 @@ decode_response(204, _Headers, Client) ->
     ok;
 decode_response(_Status, _Headers, Client) ->
     {ok, Body} = hackney:body(Client),
+    % TODO: errors are raised as exceptions, should catch them here
     {Results} = jiffy:decode(Body),
     {error, Results}.
 
