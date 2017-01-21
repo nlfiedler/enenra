@@ -8,7 +8,7 @@
 %
 % @author Nathan Fiedler <nathanfiedler@fastmail.fm>
 % @copyright 2016 Nathan Fiedler
-% @version 0.1.4
+% @version 0.1.5
 % @doc A library for interfacing with Google Cloud Storage.
 %
 % `enenra' is an Erlang/OTP library for creating buckets, uploading objects,
