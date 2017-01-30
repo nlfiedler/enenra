@@ -23,7 +23,7 @@ To include `enenra` as a dependency in your release, add it to the list of depen
 
 ```
 {deps, [
-    {enenra, {git, "https://github.com/nlfiedler/enenra", {tag, "0.1.5"}}}
+    {enenra, {git, "https://github.com/nlfiedler/enenra", {tag, "0.1.6"}}}
 ]}.
 ```
 

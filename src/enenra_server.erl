@@ -276,8 +276,10 @@ upload_file(Url, Object, Filename, Token) ->
     ]),
     ReqBody = {file, Filename},
     % Receiving the response after an upload can take a few seconds, so
-    % give it a chance to compute the MD5 and such before timing out.
-    Options = [{recv_timeout, 60000}],
+    % give it a chance to compute the MD5 and such before timing out. Set
+    % the timeout rather high as it seems that certain inputs can cause a
+    % long delay in response?
+    Options = [{recv_timeout, 300000}],
     % Errors during upload are not unusual, so return them gracefully
     % rather than exploding and generating a lengthy crash report.
     case hackney:request(put, Url, ReqHeaders, ReqBody, Options) of
