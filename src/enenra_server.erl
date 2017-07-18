@@ -1,6 +1,6 @@
 %% -*- coding: utf-8 -*-
 %%
-%% Copyright 2016 Nathan Fiedler. All rights reserved.
+%% Copyright 2016-2017 Nathan Fiedler. All rights reserved.
 %% Use of this source code is governed by a BSD-style
 %% license that can be found in the LICENSE file.
 %%
@@ -155,7 +155,7 @@ insert_bucket(Bucket, Credentials, Token) ->
     Project = Credentials#credentials.project_id,
     Url = hackney_url:make_url(?BASE_URL, <<"">>, [{"project", Project}]),
     ReqHeaders = add_auth_header(Token, [
-        {"Content-Type", "application/json"}
+        {<<"Content-Type">>, <<"application/json">>}
     ]),
     ReqBody = binary_to_list(jiffy:encode({[
         {<<"name">>, Bucket#bucket.name},
@@ -180,7 +180,7 @@ insert_bucket(Bucket, Credentials, Token) ->
 update_bucket(Name, Properties, Token) ->
     Url = <<?BASE_URL/binary, Name/binary>>,
     ReqHeaders = add_auth_header(Token, [
-        {"Content-Type", "application/json"}
+        {<<"Content-Type">>, <<"application/json">>}
     ]),
     ReqBody = binary_to_list(jiffy:encode({Properties})),
     {ok, Status, Headers, Client} = hackney:request(patch, Url, ReqHeaders, ReqBody),
@@ -244,9 +244,9 @@ upload_object(Object, Filename, Token) ->
     Url = hackney_url:make_url(
         ?UPLOAD_URL, <<BucketName/binary, "/o">>, [{"uploadType", "resumable"}]),
     ReqHeaders = add_auth_header(Token, [
-        {"Content-Type", "application/json; charset=UTF-8"},
-        {"X-Upload-Content-Type", binary_to_list(Object#object.contentType)},
-        {"X-Upload-Content-Length", Object#object.size}
+        {<<"Content-Type">>, <<"application/json; charset=UTF-8">>},
+        {<<"X-Upload-Content-Type">>, Object#object.contentType},
+        {<<"X-Upload-Content-Length">>, Object#object.size}
     ]),
     ReqBody = binary_to_list(jiffy:encode({[
         {<<"name">>, Object#object.name},
@@ -271,8 +271,8 @@ upload_object(Object, Filename, Token) ->
 -spec upload_file(binary(), object(), string(), access_token()) -> {ok, object()} | {error, term()}.
 upload_file(Url, Object, Filename, Token) ->
     ReqHeaders = add_auth_header(Token, [
-        {"Content-Type", Object#object.contentType},
-        {"Content-Length", Object#object.size}
+        {<<"Content-Type">>, Object#object.contentType},
+        {<<"Content-Length">>, Object#object.size}
     ]),
     ReqBody = {file, Filename},
     % Receiving the response after an upload can take a few seconds, so
@@ -282,6 +282,10 @@ upload_file(Url, Object, Filename, Token) ->
     Options = [{recv_timeout, 300000}],
     % Errors during upload are not unusual, so return them gracefully
     % rather than exploding and generating a lengthy crash report.
+
+    %
+    % TODO: works on Erlang 19? but not on Erlang 20?
+    %
     case hackney:request(put, Url, ReqHeaders, ReqBody, Options) of
         {ok, Status, Headers, Client} ->
             case decode_response(Status, Headers, Client) of
@@ -364,7 +368,7 @@ update_object(BucketName, ObjectName, Properties, Token) ->
     ON = hackney_url:urlencode(ObjectName),
     Url = <<?BASE_URL/binary, BucketName/binary, "/o/", ON/binary>>,
     ReqHeaders = add_auth_header(Token, [
-        {"Content-Type", "application/json"}
+        {<<"Content-Type">>, <<"application/json">>}
     ]),
     ReqBody = binary_to_list(jiffy:encode({Properties})),
     {ok, Status, Headers, Client} = hackney:request(patch, Url, ReqHeaders, ReqBody),
@@ -399,9 +403,9 @@ make_object(PropList) ->
 add_auth_header(Token, Headers) ->
     AccessToken = Token#access_token.access_token,
     TokenType = Token#access_token.token_type,
-    Authorization = binary_to_list(TokenType) ++ " " ++ binary_to_list(AccessToken),
+    Authorization = <<TokenType/binary, " ", AccessToken/binary>>,
     Headers ++ [
-        {"Authorization", Authorization}
+        {<<"Authorization">>, Authorization}
     ].
 
 % @doc
@@ -413,6 +417,9 @@ add_auth_header(Token, Headers) ->
 % {error, not_found}, 409 returns {error, conflict}.
 %
 -spec decode_response(integer(), list(), term()) -> {ok, term()} | {error, term()}.
+decode_response(400, _Headers, Client) ->
+    {ok, Body} = hackney:body(Client),
+    {error, Body};
 decode_response(401, _Headers, Client) ->
     % need to read/skip the body to close the connection
     hackney:skip_body(Client),

@@ -1,11 +1,12 @@
 %% -*- coding: utf-8 -*-
 %%
-%% Copyright 2016 Nathan Fiedler. All rights reserved.
+%% Copyright 2016-2017 Nathan Fiedler. All rights reserved.
 %% Use of this source code is governed by a BSD-style
 %% license that can be found in the LICENSE file.
 %%
 -module(enenra_SUITE).
--compile(export_all).
+-export([init_per_suite/1, end_per_suite/1, all/0]).
+-export([bucket_lifecycle_test/1, object_lifecycle_test/1, bucket_name_validation_test/1]).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include("enenra.hrl").
@@ -38,7 +39,7 @@ bucket_lifecycle_test(_Config) ->
     %
     % create a new, uniquely named bucket
     %
-    Suffix = integer_to_binary(crypto:rand_uniform(1, 9999)),
+    Suffix = integer_to_binary(rand:uniform(9999)),
     Name = <<"0136d00f-a942-11e6-8f9a-3c07547e18a6-enenra-", Suffix/binary>>,
     Region = <<"US">>,
     StorageClass = <<"NEARLINE">>,  % keep this as NEARLINE, we'll change it later
@@ -102,7 +103,7 @@ object_lifecycle_test(Config) ->
     %
     % create a new, uniquely named bucket and ensure it has no objects
     %
-    Suffix = integer_to_binary(crypto:rand_uniform(1, 9999)),
+    Suffix = integer_to_binary(rand:uniform(9999)),
     BucketName = <<"0136d00f-a942-11e6-8f9a-3c07547e18a6-enenra-", Suffix/binary>>,
     {ok, _Bucket} = enenra:insert_bucket(#bucket{
         name = BucketName,

@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.1.7] - 2017-07-17
+### Changed
+- Update hackney version; change all HTTP request headers to binaries.
+- Return HTTP 400 response as an error, rather than crashing.
+
 ## [0.1.6] - 2017-01-30
 ### Changed
 - Raise `recv_timeout` to 5 minutes as it repeatedly timed out for a small file.

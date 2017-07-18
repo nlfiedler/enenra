@@ -4,7 +4,7 @@ An Erlang/OTP library for interfacing with Google Cloud Storage. Named after the
 
 ## Requirements
 
-* [Erlang/OTP](http://www.erlang.org) R17 or higher
+* [Erlang/OTP](http://www.erlang.org) R18 or higher
 * [rebar3](https://github.com/erlang/rebar3/) 3.0.0 or higher
 
 ## Building and Testing
@@ -23,7 +23,7 @@ To include `enenra` as a dependency in your release, add it to the list of depen
 
 ```
 {deps, [
-    {enenra, {git, "https://github.com/nlfiedler/enenra", {tag, "0.1.6"}}}
+    {enenra, {git, "https://github.com/nlfiedler/enenra", {tag, "0.1.7"}}}
 ]}.
 ```
 
