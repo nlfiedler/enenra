@@ -83,7 +83,7 @@ bucket_lifecycle_test(_Config) ->
     %
     {ok, Buckets} = enenra:list_buckets(Creds),
     ?assert(is_list(Buckets)),
-    ?assert(length(Buckets) > 1),
+    ?assert(length(Buckets) > 0),
     ?assert(lists:any(fun (Elem) -> Elem#bucket.name == Name end, Buckets)),
 
     %
