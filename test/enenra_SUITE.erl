@@ -149,6 +149,13 @@ object_lifecycle_test(Config) ->
     ?assertEqual(UpObject#object.contentType, UpMimeType),
 
     %
+    % download the file contents and compare the MD5 to verify
+    %
+    {ok, OutObjectContents} = enenra:get_object_contents(BucketName, ObjectName, Creds),
+    OutContentsMd5 = base64:encode(erlang:md5(OutObjectContents)),
+    ?assertEqual(Md5, OutContentsMd5),
+
+    %
     % download the file again and compare the MD5 to verify
     %
     Filename = filename:join(PrivDir, "IMG_5745.JPG"),

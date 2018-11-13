@@ -86,6 +86,11 @@ handle_call({get_object, BucketName, ObjectName, Credentials}, _From, State) ->
         get_object(BucketName, ObjectName, Token)
     end,
     request_with_retry(GetObject, Credentials, State);
+handle_call({get_object_contents, BucketName, ObjectName, Credentials}, _From, State) ->
+    GetObjectContents = fun(Token) ->
+        get_object_contents(BucketName, ObjectName, Token)
+    end,
+    request_with_retry(GetObjectContents, Credentials, State);
 handle_call({delete_object, BucketName, ObjectName, Credentials}, _From, State) ->
     DeleteObject = fun(Token) ->
         delete_object(BucketName, ObjectName, Token)
@@ -341,6 +346,29 @@ get_object(BucketName, ObjectName, Token) ->
     {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
     case decode_response(Status, Headers, Client) of
         {ok, Body} -> {ok, make_object(Body)};
+        R -> R
+    end.
+% @doc
+%
+% Retrieve the contents of the named object in the named bucket.
+%
+-spec get_object_contents(binary(), binary(), credentials()) -> {ok, object()} | {error, term()}.
+get_object_contents(BucketName, ObjectName, Token) ->
+    ON = hackney_url:urlencode(ObjectName),
+    UrlPath = <<BucketName/binary, "/o/", ON/binary>>,
+    Url = hackney_url:make_url(?BASE_URL, UrlPath, [{"alt", "media"}]),
+    ReqHeaders = add_auth_header(Token, []),
+    {ok, Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
+    case Status of
+        200 -> stream_to_binary(Client);
+        _ -> decode_response(Status, Headers, Client)
+    end.
+
+stream_to_binary(Client) -> stream_to_binary(Client, <<>>).
+stream_to_binary(Client, Acc) ->
+    case hackney:stream_body(Client) of
+        done -> {ok, Acc};
+        {ok, Data} -> stream_to_binary(Client, << Acc/binary, Data/binary >>);
         R -> R
     end.
 
