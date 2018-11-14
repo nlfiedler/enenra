@@ -83,7 +83,7 @@ bucket_lifecycle_test(_Config) ->
     %
     {ok, Buckets} = enenra:list_buckets(Creds),
     ?assert(is_list(Buckets)),
-    ?assert(length(Buckets) > 1),
+    ?assert(length(Buckets) > 0),
     ?assert(lists:any(fun (Elem) -> Elem#bucket.name == Name end, Buckets)),
 
     %
@@ -147,6 +147,13 @@ object_lifecycle_test(Config) ->
     ObjectProps = [{<<"contentType">>, UpMimeType}],
     {ok, UpObject} = enenra:update_object(BucketName, ObjectName, ObjectProps, Creds),
     ?assertEqual(UpObject#object.contentType, UpMimeType),
+
+    %
+    % download the file contents and compare the MD5 to verify
+    %
+    {ok, OutObjectContents} = enenra:get_object_contents(BucketName, ObjectName, Creds),
+    OutContentsMd5 = base64:encode(erlang:md5(OutObjectContents)),
+    ?assertEqual(Md5, OutContentsMd5),
 
     %
     % download the file again and compare the MD5 to verify

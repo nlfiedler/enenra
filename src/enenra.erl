@@ -27,7 +27,7 @@
 
 -export([load_credentials/1, compute_md5/1, validate_bucket_name/1]).
 -export([list_buckets/1, get_bucket/2, insert_bucket/2, update_bucket/3, delete_bucket/2]).
--export([list_objects/2, get_object/3, update_object/4, delete_object/3]).
+-export([list_objects/2, get_object/3, get_object_contents/3, update_object/4, delete_object/3]).
 -export([upload_file/3, download_object/4]).
 
 % @doc
@@ -167,6 +167,21 @@ download_object(BucketName, ObjectName, Filename, Credentials) ->
     Reason :: term().
 get_object(BucketName, ObjectName, Credentials) ->
     gen_server:call(enenra_server, {get_object, BucketName, ObjectName, Credentials}, infinity).
+
+% @doc
+%
+% Retrieve the contents of the object named ObjectName in the bucket
+% named BucketName, returning the {ok, ObjectBinary} if successful
+% or {error, Reason} if error.
+%
+-spec get_object_contents(BucketName, ObjectName, Credentials) -> {ok, ObjectContents} | {error, Reason} when
+    BucketName :: binary(),
+    ObjectName :: binary(),
+    Credentials :: credentials(),
+    ObjectContents :: binary(),
+    Reason :: term().
+get_object_contents(BucketName, ObjectName, Credentials) ->
+    gen_server:call(enenra_server, {get_object_contents, BucketName, ObjectName, Credentials}, infinity).
 
 % @doc
 %
