@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.0] - 2018-11-13
+### Added
+- pselden: Add `get_object_contents/3` to fetch an object as a binary.
+### Changed
+- Update hackney and jiffy to latest released versions.
+
 ## [0.1.7] - 2017-07-17
 ### Changed
 - Update hackney version; change all HTTP request headers to binaries.
