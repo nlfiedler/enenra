@@ -4,7 +4,8 @@ An Erlang/OTP library for interfacing with Google Cloud Storage. Named after the
 
 ## Requirements
 
-* [Erlang/OTP](http://www.erlang.org) R18 or higher
+* [Erlang/OTP](http://www.erlang.org) R18 or R19
+    * R20 has backward incompatible API changes
 * [rebar3](https://github.com/erlang/rebar3/) 3.0.0 or higher
 
 ## Building and Testing
