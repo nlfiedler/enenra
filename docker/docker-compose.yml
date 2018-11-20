@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  enenra:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/src
+    # override the default of erl as we want to run tests
+    entrypoint: bash
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /src/testing.json
+    stdin_open: true
+    tty: true

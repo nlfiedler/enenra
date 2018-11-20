@@ -91,6 +91,19 @@ Below is a simple example in which a bucket is created and a file is uploaded to
 
 The credentials file must be readable by the application, but should not be readable by casual users. Likewise, it is possible, if the server process crashes, that the private keys will end up in the log file (they are an argument to the API, after all). As such, the log files should be protected from unintended exposure to third parties.
 
+## Docker
+
+[Docker](https://www.docker.com) can be used to build and test the code without affecting your development environment, which may have a different version of Erlang/OTP installed. The use of `docker-compose`, as shown in the example below, is optional, but it makes the process very simple. Note that `GOOGLE_APPLICATION_CREDENTIALS` should have a path reachable within the container, such as `/src/creds.json`
+
+```shell
+$ cd docker
+$ docker-compose build
+$ docker-compose run enenra
+$ rebar3 clean
+$ rebar3 compile
+$ rebar3 ct
+```
+
 ## License
 
 [BSD 3-Clause](https://opensource.org/licenses/BSD-3-Clause), see the `LICENSE` file.
