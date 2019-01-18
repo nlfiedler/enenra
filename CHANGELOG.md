@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.1] - 2018-11-19
+### Changed
+- chrisplim: Update types in hrl to pass dialyzer check.
+
 ## [0.2.0] - 2018-11-13
 ### Added
 - pselden: Add `get_object_contents/3` to fetch an object as a binary.
