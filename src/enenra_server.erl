@@ -71,9 +71,9 @@ handle_call({list_objects, BucketName, Credentials}, _From, State) ->
         list_objects(BucketName, Token)
     end,
     request_with_retry(ListObjects, Credentials, State);
-handle_call({upload_object, Object, Filename, Credentials}, _From, State) ->
+handle_call({upload_object, Object, RequestBody, Credentials}, _From, State) ->
     UploadObject = fun(Token) ->
-        upload_object(Object, Filename, Token)
+        upload_object(Object, RequestBody, Token)
     end,
     request_with_retry(UploadObject, Credentials, State);
 handle_call({download_object, BucketName, ObjectName, Filename, Credentials}, _From, State) ->
@@ -243,8 +243,8 @@ list_objects(BucketName, Token) ->
 % Upload an object to the named bucket and return {ok, Object} or {error,
 % Reason}, where Object has the updated object properties.
 %
--spec upload_object(object(), string(), access_token()) -> {ok, object()} | {error, term()}.
-upload_object(Object, Filename, Token) ->
+-spec upload_object(object(), request_body(), access_token()) -> {ok, object()} | {error, term()}.
+upload_object(Object, RequestBody, Token) ->
     BucketName = Object#object.bucket,
     Url = hackney_url:make_url(
         ?UPLOAD_URL, <<BucketName/binary, "/o">>, [{"uploadType", "resumable"}]),
@@ -264,22 +264,21 @@ upload_object(Object, Filename, Token) ->
             % need to read/skip the body to close the connection
             hackney:skip_body(Client),
             UploadUrl = proplists:get_value(<<"Location">>, Headers),
-            upload_file(UploadUrl, Object, Filename, Token);
+            do_upload(UploadUrl, Object, RequestBody, Token);
         _ -> decode_response(Status, Headers, Client)
     end.
 
 % @doc
 %
-% Upload the named file to the given upload URL and return {ok, Object} or
+% Perform put request to upload the object to the given upload URL and return {ok, Object} or
 % {error, Reason}, where Object has the updated object properties.
 %
--spec upload_file(binary(), object(), string(), access_token()) -> {ok, object()} | {error, term()}.
-upload_file(Url, Object, Filename, Token) ->
+-spec do_upload(binary(), object(), request_body(), access_token()) -> {ok, object()} | {error, term()}.
+do_upload(Url, Object, RequestBody, Token) ->
     ReqHeaders = add_auth_header(Token, [
         {<<"Content-Type">>, Object#object.contentType},
         {<<"Content-Length">>, Object#object.size}
     ]),
-    ReqBody = {file, Filename},
     % Receiving the response after an upload can take a few seconds, so
     % give it a chance to compute the MD5 and such before timing out. Set
     % the timeout rather high as it seems that certain inputs can cause a
@@ -291,7 +290,7 @@ upload_file(Url, Object, Filename, Token) ->
     %
     % TODO: works on Erlang 19? but not on Erlang 20?
     %
-    case hackney:request(put, Url, ReqHeaders, ReqBody, Options) of
+    case hackney:request(put, Url, ReqHeaders, RequestBody, Options) of
         {ok, Status, Headers, Client} ->
             case decode_response(Status, Headers, Client) of
                 {ok, Body} -> {ok, make_object(Body)};

@@ -76,3 +76,6 @@
     md5Hash :: binary()
 }.
 -export_type([object/0]).
+
+-type request_body() :: {file, string()} | iodata().
+-export_type([request_body/0]).

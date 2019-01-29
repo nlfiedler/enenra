@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.3.0] - 2019-01-29
+### Added
+- chrisplim: Add `upload_data/3` to upload an object from data
+
 ## [0.2.1] - 2018-11-19
 ### Changed
 - chrisplim: Update types in hrl to pass dialyzer check.
