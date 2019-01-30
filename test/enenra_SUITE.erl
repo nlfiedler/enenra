@@ -139,10 +139,32 @@ object_lifecycle_test(Config) ->
     ?assertEqual(1, length(Objects1)),
 
     %
+    % upload data and ensure it now appears in the list of objects.
+    %
+    {ok, Data} = file:read_file(ImagePath),
+    DataMd5 = base64:encode(erlang:md5(Data)),
+    DataObjectName = <<ObjectName/binary, "_2">>,
+    {ok, DataObject} = enenra:upload_data(Data, #object{
+        name = DataObjectName,
+        bucket = BucketName,
+        contentType = MimeType,
+        md5Hash = DataMd5,
+        size = 107302
+    }, Creds),
+    ?assertEqual(DataObjectName, DataObject#object.name),
+    ?assertEqual(BucketName, DataObject#object.bucket),
+    ?assertEqual(MimeType, DataObject#object.contentType),
+    ?assertEqual(DataMd5, DataObject#object.md5Hash),
+    {ok, Objects2} = enenra:list_objects(BucketName, Creds),
+    ?assertEqual(2, length(Objects2)),
+
+    %
     % fetch the object metadata and verify
     %
     {ok, OutObject} = enenra:get_object(BucketName, ObjectName, Creds),
     ?assertEqual(Object, OutObject),
+    {ok, OutObject2} = enenra:get_object(BucketName, DataObjectName, Creds),
+    ?assertEqual(DataObject, OutObject2),
     UpMimeType = <<"image/jegs">>,
     ObjectProps = [{<<"contentType">>, UpMimeType}],
     {ok, UpObject} = enenra:update_object(BucketName, ObjectName, ObjectProps, Creds),
@@ -168,6 +190,8 @@ object_lifecycle_test(Config) ->
     %
     ok = enenra:delete_object(BucketName, ObjectName, Creds),
     {error, not_found} = enenra:get_object(BucketName, ObjectName, Creds),
+    ok = enenra:delete_object(BucketName, DataObjectName, Creds),
+    {error, not_found} = enenra:get_object(BucketName, DataObjectName, Creds),
     ok = enenra:delete_bucket(BucketName, Creds),
     ok.
 

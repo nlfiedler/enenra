@@ -8,7 +8,7 @@
 %
 % @author Nathan Fiedler <nathanfiedler@fastmail.fm>
 % @copyright 2016-2018 Nathan Fiedler
-% @version 0.2.1
+% @version 0.3.0
 % @doc A library for interfacing with Google Cloud Storage.
 %
 % `enenra' is an Erlang/OTP library for creating buckets, uploading objects,
@@ -28,7 +28,7 @@
 -export([load_credentials/1, compute_md5/1, validate_bucket_name/1]).
 -export([list_buckets/1, get_bucket/2, insert_bucket/2, update_bucket/3, delete_bucket/2]).
 -export([list_objects/2, get_object/3, get_object_contents/3, update_object/4, delete_object/3]).
--export([upload_file/3, download_object/4]).
+-export([upload_file/3, upload_data/3, download_object/4]).
 
 % @doc
 %
@@ -136,7 +136,22 @@ list_objects(BucketName, Credentials) ->
     Credentials :: credentials(),
     Reason :: term().
 upload_file(Filename, Object, Credentials) ->
-    gen_server:call(enenra_server, {upload_object, Object, Filename, Credentials}, infinity).
+    RequestBody = {file, Filename},
+    gen_server:call(enenra_server, {upload_object, Object, RequestBody, Credentials}, infinity).
+
+% @doc
+%
+% Upload iodata, Data, with the properties given by
+% Object, to the bucket named in the Object#bucket field. The returned
+% Object value will have the updated properties.
+%
+-spec upload_data(Data, Object, Credentials) -> {ok, Object} | {error, Reason} when
+    Data :: iodata(),
+    Object :: object(),
+    Credentials :: credentials(),
+    Reason :: term().
+upload_data(Data, Object, Credentials) ->
+    gen_server:call(enenra_server, {upload_object, Object, Data, Credentials}, infinity).
 
 % @doc
 %
