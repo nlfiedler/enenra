@@ -3,9 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.3.0] - 2019-01-29
+## [0.3.0] - 2019-02-02
 ### Added
 - chrisplim: Add `upload_data/3` to upload an object from data
+- nfiedler: Update hackney to 1.15.0 release
 
 ## [0.2.1] - 2018-11-19
 ### Changed
