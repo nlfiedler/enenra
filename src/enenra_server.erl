@@ -561,5 +561,4 @@ seconds_since_epoch() ->
 compute_signature(PemKeyBin, Msg) ->
     [PemKeyData] = public_key:pem_decode(PemKeyBin),
     PemKey = public_key:pem_entry_decode(PemKeyData),
-    RsaKey = public_key:der_decode('RSAPrivateKey', PemKey#'PrivateKeyInfo'.privateKey),
-    base64:encode(public_key:sign(Msg, sha256, RsaKey)).
+    base64:encode(public_key:sign(Msg, sha256, PemKey)).
