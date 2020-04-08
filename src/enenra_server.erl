@@ -15,6 +15,8 @@
 -define(AUTH_URL, <<"https://www.googleapis.com/oauth2/v4/token">>).
 -define(AUD_URL, <<"https://www.googleapis.com/oauth2/v4/token">>).
 
+-define(GOOGLE_INTERNAL_AUTH_URL, <<"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token">>).
+
 % read/write is useful for adding and deleting, but that's about it
 -define(READ_WRITE_SCOPE, <<"https://www.googleapis.com/auth/devstorage.read_write">>).
 % full-control is required for updating/patching existing resources
@@ -514,6 +516,10 @@ request_with_retry(Fun, Credentials, State) ->
 % the PEM encoded private key.
 %
 -spec get_auth_token(credentials()) -> {ok, access_token()} | {error, term()}.
+get_auth_token(use_google_internal_metadata_server) ->
+    %% it assumes that workload identity is properly configured
+    {ok, Status, Headers, Client} = hackney:request(get, ?GOOGLE_INTERNAL_AUTH_URL, [{<<"Metadata-Flavor">>, <<"Google">>}]),
+    decode_token_response(Status, Headers, Client);
 get_auth_token(Creds) ->
     Now = seconds_since_epoch(),
     % GCP seems to completely ignore the timeout value and always expires
@@ -533,6 +539,9 @@ get_auth_token(Creds) ->
     Jwt = <<JwtPrefix/binary, ".", Signature/binary>>,
     ReqBody = {form, [{<<"grant_type">>, ?GRANT_TYPE}, {<<"assertion">>, Jwt}]},
     {ok, Status, Headers, Client} = hackney:request(post, ?AUTH_URL, [], ReqBody),
+    decode_token_response(Status, Headers, Client).
+
+decode_token_response(Status, Headers, Client) ->
     case decode_response(Status, Headers, Client) of
         {ok, Token} ->
             AccessToken = proplists:get_value(<<"access_token">>, Token),
