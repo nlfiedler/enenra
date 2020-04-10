@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.3.1] - 2020-04-10
+### Changed
+- kenan-gillet: update hackney to fix crash in erlang >= 22.1
+- kenan-gillet: allow getting token from the google internal metadata server
+- kenan-gillet: jiffy can just be added as an application
+
 ## [0.3.0] - 2019-02-02
 ### Added
 - chrisplim: Add `upload_data/3` to upload an object from data
