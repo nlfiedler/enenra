@@ -7,7 +7,7 @@
 -module(enenra_server).
 
 -behavior(gen_server).
--export([start_link/0]).
+-export([start_link/0, call/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -define(BASE_URL, <<"https://www.googleapis.com/storage/v1/b/">>).
@@ -37,72 +37,39 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+% @doc
+% direct call, only blocking on getting token
+
+call(Msg) ->
+    case msg_to_fun(Msg) of
+        {Credentials, Fun} ->
+            {ok, Token} = call_remote({get_token, Credentials}),
+            %% Invoke the given function with an authorization token. If the function
+            case Fun(Token) of
+                {error, auth_required} ->
+                    %% re-try after refreshing the token
+                    {ok, Token} = call_remote({refresh_token, Credentials}),
+                    Fun(Token);
+                Result ->
+                    Result
+            end;
+        skip -> unsupported
+    end.
+
 %%
 %% gen_server callbacks
 %%
 init([]) ->
     {ok, #state{}}.
 
-handle_call({list_buckets, Credentials}, _From, State) ->
-    ListBuckets = fun(Token) ->
-        list_buckets(Credentials, Token)
-    end,
-    request_with_retry(ListBuckets, Credentials, State);
-handle_call({get_bucket, Name, Credentials}, _From, State) ->
-    GetBucket = fun(Token) ->
-        get_bucket(Name, Token)
-    end,
-    request_with_retry(GetBucket, Credentials, State);
-handle_call({insert_bucket, Bucket, Credentials}, _From, State) ->
-    InsertBucket = fun(Token) ->
-        insert_bucket(Bucket, Credentials, Token)
-    end,
-    request_with_retry(InsertBucket, Credentials, State);
-handle_call({update_bucket, Name, Properties, Credentials}, _From, State) ->
-    UpdateBucket = fun(Token) ->
-        update_bucket(Name, Properties, Token)
-    end,
-    request_with_retry(UpdateBucket, Credentials, State);
-handle_call({delete_bucket, Name, Credentials}, _From, State) ->
-    DeleteBucket = fun(Token) ->
-        delete_bucket(Name, Token)
-    end,
-    request_with_retry(DeleteBucket, Credentials, State);
-handle_call({list_objects, BucketName, Credentials}, _From, State) ->
-    ListObjects = fun(Token) ->
-        list_objects(BucketName, Token)
-    end,
-    request_with_retry(ListObjects, Credentials, State);
-handle_call({upload_object, Object, RequestBody, Credentials}, _From, State) ->
-    UploadObject = fun(Token) ->
-        upload_object(Object, RequestBody, Token)
-    end,
-    request_with_retry(UploadObject, Credentials, State);
-handle_call({download_object, BucketName, ObjectName, Filename, Credentials}, _From, State) ->
-    DownloadObject = fun(Token) ->
-        download_object(BucketName, ObjectName, Filename, Token)
-    end,
-    request_with_retry(DownloadObject, Credentials, State);
-handle_call({get_object, BucketName, ObjectName, Credentials}, _From, State) ->
-    GetObject = fun(Token) ->
-        get_object(BucketName, ObjectName, Token)
-    end,
-    request_with_retry(GetObject, Credentials, State);
-handle_call({get_object_contents, BucketName, ObjectName, Credentials}, _From, State) ->
-    GetObjectContents = fun(Token) ->
-        get_object_contents(BucketName, ObjectName, Token)
-    end,
-    request_with_retry(GetObjectContents, Credentials, State);
-handle_call({delete_object, BucketName, ObjectName, Credentials}, _From, State) ->
-    DeleteObject = fun(Token) ->
-        delete_object(BucketName, ObjectName, Token)
-    end,
-    request_with_retry(DeleteObject, Credentials, State);
-handle_call({update_object, BucketName, ObjectName, Properties, Credentials}, _From, State) ->
-    UpdateObject = fun(Token) ->
-        update_object(BucketName, ObjectName, Properties, Token)
-    end,
-    request_with_retry(UpdateObject, Credentials, State).
+handle_call({refresh_token, Credentials}, _From, State) ->
+    Token = get_auth_token(Credentials),
+    {reply, {ok, Token}, State#state{token=Token}};
+handle_call({get_token, Credentials}, _From, State = #state{token=undefined}) ->
+    Token = get_auth_token(Credentials),
+    {reply, {ok, Token}, State#state{token=Token}};
+handle_call({get_token, _Credentials}, _From, State = #state{token=Token}) ->
+    {reply, {ok, Token}, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -119,6 +86,40 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 %% Private functions
 %%
+
+call_remote(Msg) ->
+  gen_server:call(?MODULE, Msg, infinity).
+
+-define (CRED_FUN(FunBody),
+    { Credentials, fun(Token) -> FunBody end }
+).
+%% transform message into function callbacks
+msg_to_fun({list_buckets, Credentials}) ->
+    ?CRED_FUN(list_buckets(Credentials, Token));
+msg_to_fun({get_bucket, Name, Credentials}) ->
+    ?CRED_FUN(get_bucket(Name, Token));
+msg_to_fun({insert_bucket, Bucket, Credentials}) ->
+    ?CRED_FUN(insert_bucket(Bucket, Credentials, Token));
+msg_to_fun({update_bucket, Name, Properties, Credentials}) ->
+    ?CRED_FUN(update_bucket(Name, Properties, Token));
+msg_to_fun({delete_bucket, Name, Credentials}) ->
+    ?CRED_FUN(delete_bucket(Name, Token));
+msg_to_fun({list_objects, BucketName, Credentials}) ->
+    ?CRED_FUN(list_objects(BucketName, Token));
+msg_to_fun({upload_object, Object, RequestBody, Credentials}) ->
+    ?CRED_FUN(upload_object(Object, RequestBody, Token));
+msg_to_fun({download_object, BucketName, ObjectName, Filename, Credentials}) ->
+    ?CRED_FUN(download_object(BucketName, ObjectName, Filename, Token));
+msg_to_fun({get_object, BucketName, ObjectName, Credentials}) ->
+    ?CRED_FUN(get_object(BucketName, ObjectName, Token));
+msg_to_fun({get_object_contents, BucketName, ObjectName, Credentials}) ->
+    ?CRED_FUN(get_object_contents(BucketName, ObjectName, Token));
+msg_to_fun({delete_object, BucketName, ObjectName, Credentials}) ->
+    ?CRED_FUN(delete_object(BucketName, ObjectName, Token));
+msg_to_fun({update_object, BucketName, ObjectName, Properties, Credentials}) ->
+    ?CRED_FUN(update_object(BucketName, ObjectName, Properties, Token));
+msg_to_fun(_) ->
+    skip.
 
 % @doc
 %
@@ -482,31 +483,6 @@ decode_response(_Status, _Headers, Client) ->
         {Results} -> {ok, Results}
     catch
         Error -> Error
-    end.
-
-% @doc
-%
-% Invoke the given function with an authorization token. If the function
-% returns with an error indicating an expired authorization token, a new
-% token will be retrieved and the function invoked again. If the token is
-% replaced, the state will be updated with the new token.
-%
--spec request_with_retry(fun(), credentials(), #state{}) -> {reply, term(), #state{}}.
-request_with_retry(Fun, Credentials, #state{token=undefined}=State) ->
-    case get_auth_token(Credentials) of
-        {ok, Token} ->
-            request_with_retry(Fun, Credentials, State#state{token=Token});
-        Result -> {reply, Result, State}
-    end;
-request_with_retry(Fun, Credentials, State) ->
-    case Fun(State#state.token) of
-        {error, auth_required} ->
-            case get_auth_token(Credentials) of
-                {ok, Token} ->
-                    {reply, Fun(Token), State#state{token=Token}};
-                ResultI -> {reply, ResultI, State}
-            end;
-        ResultO -> {reply, ResultO, State}
     end.
 
 % @doc
