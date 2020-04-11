@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.4.0] - 2020-04-11
+### Changed
+- kenan-gillet: Allow parallelization of calls to GCS
+
 ## [0.3.1] - 2020-04-10
 ### Changed
 - kenan-gillet: update hackney to fix crash in erlang >= 22.1
