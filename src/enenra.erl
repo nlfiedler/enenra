@@ -58,7 +58,7 @@ load_credentials(Filepath) ->
     Buckets :: [bucket()],
     Reason :: term().
 list_buckets(Credentials) ->
-    gen_server:call(enenra_server, {list_buckets, Credentials}, infinity).
+    enenra_server:call({list_buckets, Credentials}).
 
 % @doc
 %
@@ -70,7 +70,7 @@ list_buckets(Credentials) ->
     Bucket :: bucket(),
     Reason :: term().
 get_bucket(Name, Credentials) ->
-    gen_server:call(enenra_server, {get_bucket, Name, Credentials}, infinity).
+    enenra_server:call({get_bucket, Name, Credentials}).
 
 % @doc
 %
@@ -82,7 +82,7 @@ get_bucket(Name, Credentials) ->
     Reason :: term().
 insert_bucket(Bucket, Credentials) ->
     case validate_bucket_name(Bucket#bucket.name) of
-        ok -> gen_server:call(enenra_server, {insert_bucket, Bucket, Credentials}, infinity);
+        ok -> enenra_server:call({insert_bucket, Bucket, Credentials});
         R -> R
     end.
 
@@ -95,7 +95,7 @@ insert_bucket(Bucket, Credentials) ->
     Name :: binary(),
     Reason :: term().
 delete_bucket(Name, Credentials) ->
-    gen_server:call(enenra_server, {delete_bucket, Name, Credentials}, infinity).
+    enenra_server:call({delete_bucket, Name, Credentials}).
 
 % @doc
 %
@@ -110,7 +110,7 @@ delete_bucket(Name, Credentials) ->
     Name :: binary(),
     Reason :: term().
 update_bucket(Name, Properties, Credentials) ->
-    gen_server:call(enenra_server, {update_bucket, Name, Properties, Credentials}, infinity).
+    enenra_server:call({update_bucket, Name, Properties, Credentials}).
 
 % @doc
 %
@@ -122,7 +122,7 @@ update_bucket(Name, Properties, Credentials) ->
     Objects :: [object()],
     Reason :: term().
 list_objects(BucketName, Credentials) ->
-    gen_server:call(enenra_server, {list_objects, BucketName, Credentials}, infinity).
+    enenra_server:call({list_objects, BucketName, Credentials}).
 
 % @doc
 %
@@ -137,7 +137,7 @@ list_objects(BucketName, Credentials) ->
     Reason :: term().
 upload_file(Filename, Object, Credentials) ->
     RequestBody = {file, Filename},
-    gen_server:call(enenra_server, {upload_object, Object, RequestBody, Credentials}, infinity).
+    enenra_server:call({upload_object, Object, RequestBody, Credentials}).
 
 % @doc
 %
@@ -151,7 +151,7 @@ upload_file(Filename, Object, Credentials) ->
     Credentials :: credentials(),
     Reason :: term().
 upload_data(Data, Object, Credentials) ->
-    gen_server:call(enenra_server, {upload_object, Object, Data, Credentials}, infinity).
+    enenra_server:call({upload_object, Object, Data, Credentials}).
 
 % @doc
 %
@@ -166,7 +166,7 @@ upload_data(Data, Object, Credentials) ->
     Credentials :: credentials(),
     Reason :: term().
 download_object(BucketName, ObjectName, Filename, Credentials) ->
-    gen_server:call(enenra_server, {download_object, BucketName, ObjectName, Filename, Credentials}, infinity).
+    enenra_server:call({download_object, BucketName, ObjectName, Filename, Credentials}).
 
 % @doc
 %
@@ -181,7 +181,7 @@ download_object(BucketName, ObjectName, Filename, Credentials) ->
     Object :: object(),
     Reason :: term().
 get_object(BucketName, ObjectName, Credentials) ->
-    gen_server:call(enenra_server, {get_object, BucketName, ObjectName, Credentials}, infinity).
+    enenra_server:call({get_object, BucketName, ObjectName, Credentials}).
 
 % @doc
 %
@@ -196,7 +196,7 @@ get_object(BucketName, ObjectName, Credentials) ->
     ObjectContents :: binary(),
     Reason :: term().
 get_object_contents(BucketName, ObjectName, Credentials) ->
-    gen_server:call(enenra_server, {get_object_contents, BucketName, ObjectName, Credentials}, infinity).
+    enenra_server:call({get_object_contents, BucketName, ObjectName, Credentials}).
 
 % @doc
 %
@@ -212,7 +212,7 @@ get_object_contents(BucketName, ObjectName, Credentials) ->
     ObjectName :: binary(),
     Reason :: term().
 update_object(BucketName, ObjectName, Properties, Credentials) ->
-    gen_server:call(enenra_server, {update_object, BucketName, ObjectName, Properties, Credentials}, infinity).
+    enenra_server:call({update_object, BucketName, ObjectName, Properties, Credentials}).
 
 % @doc
 %
@@ -225,7 +225,7 @@ update_object(BucketName, ObjectName, Properties, Credentials) ->
     Credentials :: credentials(),
     Reason :: term().
 delete_object(BucketName, ObjectName, Credentials) ->
-    gen_server:call(enenra_server, {delete_object, BucketName, ObjectName, Credentials}, infinity).
+    enenra_server:call({delete_object, BucketName, ObjectName, Credentials}).
 
 % @doc
 %
