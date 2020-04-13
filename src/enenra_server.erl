@@ -63,11 +63,15 @@ init([]) ->
     {ok, #state{}}.
 
 handle_call({refresh_token, Credentials}, _From, State) ->
-    Token = get_auth_token(Credentials),
-    {reply, {ok, Token}, State#state{token=Token}};
-handle_call({get_token, Credentials}, _From, State = #state{token=undefined}) ->
-    Token = get_auth_token(Credentials),
-    {reply, {ok, Token}, State#state{token=Token}};
+    case get_auth_token(Credentials) of
+      R = {ok, Token} ->
+        {reply, R, State#state{token=Token}};
+      Reply ->
+        {reply, Reply, State#state{token=undefined}}
+    end;
+handle_call({get_token, Credentials}, From, State = #state{token=undefined}) ->
+    % token is not set, just call refresh
+    handle_call({refresh_token, Credentials}, From, State);
 handle_call({get_token, _Credentials}, _From, State = #state{token=Token}) ->
     {reply, {ok, Token}, State}.
 
