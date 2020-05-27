@@ -48,8 +48,8 @@ call(Msg) ->
             case Fun(Token) of
                 {error, auth_required} ->
                     %% re-try after refreshing the token
-                    {ok, Token} = call_remote({refresh_token, Credentials}),
-                    Fun(Token);
+                    {ok, FreshToken} = call_remote({refresh_token, Credentials}),
+                    Fun(FreshToken);
                 Result ->
                     Result
             end;
